@@ -62,3 +62,15 @@ jobs:
           python -m forexpro_ri.cli memory compare --db "$tmpdir/memory.sqlite" --experiment SYNTHETIC-001 --experiment SYNTHETIC-002 --expected-procedure REGIME_STABILITY --format json
           python -m forexpro_ri.cli memory compare --db "$tmpdir/memory.sqlite" --experiment SYNTHETIC-002 --experiment SYNTHETIC-001 --expected-procedure REGIME_STABILITY --format markdown
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
+
+      - name: Synthetic-only Research Dossier (v0.7)
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory dossier --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format json
+          python -m forexpro_ri.cli memory dossier --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format markdown
+          python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"

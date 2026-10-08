@@ -131,3 +131,18 @@ python -m forexpro_ri.cli memory compare --db local_data/demo.sqlite --experimen
 **Limits:** This is a comparison of **recorded verdicts**, not evidence that experiments share a valid protocol, comparable datasets, independent validation, or similar performance metrics. A recorded difference does not identify a cause, profit edge, or reason to change a closed experiment. No scientific authority, broker permission or HOLDOUT access is created. Report IDs/digests can themselves be sensitive metadata; do not publish real output in public issues or GitHub Actions.
 
 See [Cohort comparison contract](docs/COHORT_COMPARISON.md).
+
+
+## Research Dossier (v0.7)
+
+Produce a **single deterministic, read-only** view for one closed experiment: its recorded procedure outcomes, evidence-visibility gaps, up to ten similar recorded negative-signature cases, recurring negative observations and questions for **new** preregistered studies. All sections use one verified SQLite read snapshot; no observation prose, metrics or protected data are imported from the database.
+
+```bash
+# Offline, synthetic examples only — never commit a real Research Memory database.
+mkdir -p local_data
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db local_data/demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer --db local_data/demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory dossier --db local_data/demo.sqlite --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format markdown
+```
+
+The report is **not** scientific validation, a reason to modify a closed study, or proof of independent replications. `UNOBSERVED` and `NOT_EVALUABLE` remain distinct. Expected procedures are operator declarations, not ForexPro protocol authority; SHA digests do not preserve the original exporter's signature. See [Research Dossier contract](docs/RESEARCH_DOSSIER.md).
