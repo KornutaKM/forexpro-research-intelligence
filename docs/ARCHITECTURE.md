@@ -83,3 +83,12 @@ operator-expected procedures are *not* scientific policy verification.
 All comparison reports are content addressed and have no scientific,
 HOLDOUT or broker authority. FRI cannot assert lineage independence or
 comparability of strategies from Research Memory's current schema.
+
+
+## v0.7 Research Dossier
+
+The independent offline dossier combines recorded outcomes, evidence-visibility gaps,
+negative-signature analogues, recurring observations and prospective questions within
+**one SQLite read snapshot**. It verifies the entire memory store before rendering,
+cites only digests/identifiers, provides no authority, and neither accesses ForexPro Core
+nor claims real experiment provenance. See [Research Dossier](RESEARCH_DOSSIER.md).

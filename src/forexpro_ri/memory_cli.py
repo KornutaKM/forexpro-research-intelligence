@@ -18,7 +18,7 @@ def run(argv: list[str]) -> int:
     validation = add.add_mutually_exclusive_group(required=True)
     validation.add_argument('--trust-store', type=Path, help='Trusted public key registry outside bundle, required for real data')
     validation.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for explicit synthetic fixtures; never for private research')
-    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare'):
+    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare', 'dossier'):
         cmd = add if key == 'ingest' else sub.add_parser(key)
         cmd.add_argument('--db', type=Path, required=True, help='Local private SQLite database path')
     intel = sub.choices['intelligence']
@@ -28,6 +28,11 @@ def run(argv: list[str]) -> int:
     comparison.add_argument('--experiment', action='append', required=True, help='Explicit stored experiment ID; repeat 2..50 times')
     comparison.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-expected procedure; repeat as needed')
     comparison.add_argument('--format', choices=['json', 'markdown'], default='json')
+    dossier = sub.choices['dossier']
+    dossier.add_argument('--focus', required=True, help='Stored closed experiment ID')
+    dossier.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-declared procedure')
+    dossier.add_argument('--min-support', type=int, default=2, help='Minimum distinct experiment support (2..5000)')
+    dossier.add_argument('--format', choices=['json', 'markdown'], default='json')
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
@@ -51,6 +56,13 @@ def run(argv: list[str]) -> int:
             result = build_comparison(args.db, experiment_ids=args.experiment, expected_procedures=args.expected_procedure)
             if args.format == 'markdown':
                 print(render_markdown(result), end='')
+                return 0
+        elif args.command == 'dossier':
+            from .dossier import build_dossier, render_markdown as render_dossier_markdown
+            result = build_dossier(args.db, focus_experiment_id=args.focus,
+                                   expected_procedures=args.expected_procedure, min_support=args.min_support)
+            if args.format == 'markdown':
+                print(render_dossier_markdown(result), end='')
                 return 0
         else:
             result = verify(args.db)
