@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+*.egg-info/
+dist/
+build/
+reports/
+.env
+
+# Local exports, generated evidence and private runtime state
+exports/
+bundles/
+private/
+local_data/
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
