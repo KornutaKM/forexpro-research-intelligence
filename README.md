@@ -44,3 +44,19 @@ See [Architecture](docs/ARCHITECTURE.md) and [Integration contract](docs/INTEGRA
 Public visibility does not grant permission to reuse the source. No open-source license has been selected by the repository owner. Choose a license explicitly before describing this repository as open source.
 
 Keep all real data and generated reports in private storage. Run FRI offline, not in public CI, when analyzing any actual research bundle.
+
+
+## Local Research Memory (v0.2)
+
+FRI can retain a minimal, append-only index of explicitly imported **closed** experiments in a private local SQLite database. It stores only experiment IDs, revision/digest references, procedure names, recorded verdicts, and SHA-256 digests of free-text observations. It **does not store the raw observations, broker data or source bundles**. The SQLite file is local private runtime state and must never be committed or uploaded to public GitHub Actions.
+
+```bash
+# Offline example, using only synthetic data:
+mkdir -p local_data
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db local_data/research.sqlite
+python -m forexpro_ri.cli memory history --db local_data/research.sqlite
+python -m forexpro_ri.cli memory patterns --db local_data/research.sqlite
+python -m forexpro_ri.cli memory verify --db local_data/research.sqlite
+```
+
+Re-importing identical bytes is idempotent. Conflicting exports for an existing experiment ID are rejected instead of replacing history. `memory patterns` counts affected **experiments** per recorded procedure, not the number of individual failing criteria; it does not infer causal relationships or prove profitability. `memory verify` checks database consistency and entry digests, **not exporter identity or authenticity**. SHA-256 alone is not an authentication signature; an adversary with DB write access can bypass local protections. Keep the database on a trusted, access-restricted machine.

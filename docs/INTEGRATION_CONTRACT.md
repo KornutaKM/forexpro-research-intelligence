@@ -9,3 +9,8 @@ Only input files: `manifest.json`, `summary.json`. All metadata is declared by t
 These simple v0.1 contracts are not substitutes for `ExperimentContract`, `ValidationEvidence`, `TrialLedger`, or any source platform scientific authority artifacts. The sample is **SYNTHETIC** and must never be used for promotion.
 
 The v0.1 procedure allowlist is `OUT_OF_SAMPLE`, `COST_STRESS`, `PARAMETER_STABILITY`, `MONTE_CARLO`, `WALK_FORWARD`, `REGIME_STABILITY`, `DETERMINISTIC_RERUN`, `RISK_LIMITS`, `SAMPLE_SUFFICIENCY`, `MULTIPLE_TESTING`. Unknown names (including HOLDOUT) are rejected until the contract is reviewed. **This is not a content-level DLP control**: operators must sanitize `observation` and `reason` fields before exporting.
+
+
+## Local memory indexing (v0.2)
+
+The import contract is unchanged from v0.1. The local Research Memory rejects a summary if the same procedure appears both as a recorded verdict and as not evaluable. Successful import produces a stable entry SHA-256 over minimal normalized identity + procedure/verdict + text-hash fields. Text is not stored. Reimport of the same export is a no-op; a different summary digest for the same experiment ID is a conflict. Memory can be destroyed and rebuilt from privately retained, appropriately approved exports. Never assume a locally calculated digest provides export authorization.

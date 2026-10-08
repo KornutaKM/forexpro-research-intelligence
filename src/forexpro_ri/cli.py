@@ -12,10 +12,14 @@ from .importer import import_bundle
 
 
 def main(argv: list[str] | None = None) -> int:
+    command_line = list(sys.argv[1:] if argv is None else argv)
+    if command_line and command_line[0] == 'memory':
+        from .memory_cli import run
+        return run(command_line[1:])
     parser = argparse.ArgumentParser(description="Read-only ForexPro research evidence analysis")
     parser.add_argument("bundle", type=Path, help="Directory containing manifest.json and summary.json")
     parser.add_argument("--out", type=Path, help="Local output path for JSON report (outside ForexPro Core)")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(command_line)
     try:
         manifest, summary = import_bundle(args.bundle)
         report = analyze(manifest, summary)
@@ -24,7 +28,6 @@ def main(argv: list[str] | None = None) -> int:
             target = args.out
             if target.is_symlink():
                 raise EvidenceError("cannot write report through symbolic link")
-            # No unrestricted output back into the source bundle.
             if target.resolve().is_relative_to(args.bundle.resolve()):
                 raise EvidenceError("output cannot be written inside evidence bundle")
             if target.exists():

@@ -42,3 +42,10 @@ Private source (authority) --sanitized closed summary export--> FRI local import
 - Add a queryable immutable Research Memory (not a copy of MLflow authority).
 - Add LLM-assisted narrative *only from verified report fields*, with strict tool separation and evidence citations.
 - Add UI after conformance and security tests.
+
+
+## v0.2 Research Memory
+
+A private local SQLite database records an immutable hash-index of closed experiment summaries. It does **not** persist free-text observation/reason fields or the original summary JSON. DB rows are guarded against UPDATE/DELETE by SQLite triggers; idempotent imports do not mutate prior entries. Read APIs validate entry digests and counts; `memory verify` also runs SQLite integrity and foreign-key checks. No timestamp or generated ID is used to change a deterministic result.
+
+This is an operational index, **not** a scientific result store, historical holdout bypass, signed proof, or authenticated export mechanism. Conflicting digests for one experiment ID fail closed and require human investigation; there is no automatic overwrite. Every persisted value must be treated as private if derived from internal experiments, despite FRI's public source code.
