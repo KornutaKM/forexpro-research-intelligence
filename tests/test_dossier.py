@@ -52,7 +52,7 @@ class ResearchDossierTests(unittest.TestCase):
         }
         (self.bundle / 'summary.json').write_bytes(raw)
         (self.bundle / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
 
     def populate(self, order=('A', 'B', 'C', 'D')):
         fixtures = {
@@ -70,7 +70,7 @@ class ResearchDossierTests(unittest.TestCase):
                              expected_procedures=expected, min_support=min_support)
 
     def test_project_version(self):
-        self.assertEqual(__version__, '0.7.0')
+        self.assertEqual(__version__, '0.9.0')
 
     def test_focus_verdicts_evidence_and_unobserved_are_separate(self):
         self.populate()
@@ -149,7 +149,8 @@ class ResearchDossierTests(unittest.TestCase):
         self.assertFalse(report['scientific_authority'])
         self.assertFalse(report['holdout_access'])
         self.assertFalse(report['broker_authority'])
-        self.assertEqual(report['source_authenticity'], 'NOT_ESTABLISHED_FROM_MEMORY')
+        self.assertEqual(report['source_authenticity'], 'HISTORICAL_INTAKE_VERIFICATION_ONLY')
+        self.assertEqual(report['focus_intake_provenance']['verification_status'], 'UNSIGNED_SYNTHETIC')
         self.assertIn('NOT proven independent', text)
         self.assertIn('NOT establish causality', text)
 

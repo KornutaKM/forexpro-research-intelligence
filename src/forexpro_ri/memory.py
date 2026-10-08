@@ -14,8 +14,9 @@ from typing import Any
 from .analysis import analyze, canonical_json
 from .contracts import EvidenceError
 from .importer import import_bundle
+from .provenance import install_receipts, make_receipt, read_receipt
 
-_SCHEMA_VERSION = 1
+_SCHEMA_VERSION = 2
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS experiments (
@@ -110,11 +111,16 @@ def _connect(db_path: str | Path, *, creating: bool, bundle: Path | None = None)
         if creating:
             conn.execute('PRAGMA synchronous=FULL')
         version = conn.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, _SCHEMA_VERSION) or (not creating and version != _SCHEMA_VERSION):
+        if version not in (0, 1, _SCHEMA_VERSION) or (not creating and version == 0):
             raise EvidenceError('unsupported database schema version')
         if creating and version == 0:
             conn.executescript(_DDL)
-            conn.execute(f'PRAGMA user_version={_SCHEMA_VERSION}')
+            install_receipts(conn, migrate_existing=False)
+        elif creating and version == 1:
+            # Do not silently upgrade tainted v1 history: verify every row first.
+            for row in conn.execute('SELECT experiment_id FROM experiments ORDER BY experiment_id'):
+                _load(conn, row['experiment_id'])
+            install_receipts(conn, migrate_existing=True)
         return conn
     except (sqlite3.Error, EvidenceError) as exc:
         if 'conn' in locals():
@@ -139,17 +145,28 @@ def _load(conn: sqlite3.Connection, experiment_id: str) -> dict[str, Any]:
         raise EvidenceError(f'memory count mismatch for {experiment_id}')
     if {c['procedure'] for c in criteria} & {c['procedure'] for c in unevaluable}:
         raise EvidenceError(f'contradictory procedure verdict for {experiment_id}')
+    if conn.execute('PRAGMA user_version').fetchone()[0] >= 2:
+        read_receipt(conn, experiment_id, source['entry_sha256'])
     return source
 
 
-def ingest(bundle_dir: str | Path, db_path: str | Path, *, trust_store: str | Path | None = None) -> dict[str, Any]:
+def ingest(bundle_dir: str | Path, db_path: str | Path, *, trust_store: str | Path | None = None, allow_unsigned_synthetic: bool = False) -> dict[str, Any]:
     """Atomically save one explicitly exported closed experiment; repeat is a no-op."""
     bundle = Path(bundle_dir)
+    if trust_store is not None and allow_unsigned_synthetic:
+        raise EvidenceError('signed and unsigned-synthetic intake flags are mutually exclusive')
     if trust_store is not None:
         from .attestation import verify_export
-        manifest, summary, _ = verify_export(bundle, trust_store)
-    else:
+        manifest, summary, verification = verify_export(bundle, trust_store)
+    elif allow_unsigned_synthetic:
         manifest, summary = import_bundle(bundle)
+        verification = None
+        if not manifest.experiment_id.startswith('SYNTHETIC-') or any(
+            'synthetic' not in item['observation'].lower() for item in summary['criteria']
+        ) or any('synthetic' not in item['reason'].lower() for item in summary['not_evaluable']):
+            raise EvidenceError('unsigned intake restricted to explicit synthetic fixtures')
+    else:
+        raise EvidenceError('signed intake requires trust_store; use allow_unsigned_synthetic=True for fixtures')
     # A procedure cannot be both evaluated and not evaluable in one export.
     if {c['procedure'] for c in summary['criteria']} & {n['procedure'] for n in summary['not_evaluable']}:
         raise EvidenceError('same procedure cannot be evaluated and not evaluable')
@@ -170,6 +187,7 @@ def ingest(bundle_dir: str | Path, db_path: str | Path, *, trust_store: str | Pa
         'not_evaluable_count': report['counts']['not_evaluable'],
     }
     source['entry_sha256'] = _sha(canonical_json(_canonical_entry(source, criteria, unevaluable)))
+    receipt = make_receipt(manifest.experiment_id, source['entry_sha256'], verification)
     conn = _connect(db_path, creating=True, bundle=bundle)
     try:
         conn.execute('BEGIN IMMEDIATE')
@@ -178,13 +196,17 @@ def ingest(bundle_dir: str | Path, db_path: str | Path, *, trust_store: str | Pa
             if previous['entry_sha256'] != source['entry_sha256']:
                 raise EvidenceError('conflicting immutable export for the same experiment_id')
             _load(conn, manifest.experiment_id)
+            stored_receipt = read_receipt(conn, manifest.experiment_id, source['entry_sha256'])
+            if stored_receipt['receipt_sha256'] != receipt['receipt_sha256']:
+                raise EvidenceError('conflicting immutable intake provenance for same experiment_id')
             conn.rollback()
-            return {"status": "ALREADY_PRESENT", "experiment_id": manifest.experiment_id, "entry_sha256": source['entry_sha256']}
+            return {"status": "ALREADY_PRESENT", "experiment_id": manifest.experiment_id, "entry_sha256": source['entry_sha256'], "verification_status": receipt['verification_status']}
         conn.execute('INSERT INTO experiments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', tuple(source.values()))
         conn.executemany('INSERT INTO criteria VALUES (?, ?, ?, ?, ?)', [(manifest.experiment_id, c['criterion_id'], c['procedure'], c['verdict'], c['observation_sha256']) for c in criteria])
         conn.executemany('INSERT INTO not_evaluable VALUES (?, ?, ?)', [(manifest.experiment_id, c['procedure'], c['reason_sha256']) for c in unevaluable])
+        conn.execute('INSERT INTO intake_receipts VALUES (?, ?, ?, ?, ?, ?, ?, ?)', tuple(receipt.values()))
         conn.commit()
-        return {"status": "IMPORTED", "experiment_id": manifest.experiment_id, "entry_sha256": source['entry_sha256']}
+        return {"status": "IMPORTED", "experiment_id": manifest.experiment_id, "entry_sha256": source['entry_sha256'], "verification_status": receipt['verification_status']}
     except sqlite3.Error as exc:
         conn.rollback()
         raise EvidenceError(f'memory write rejected: {exc}') from exc
@@ -238,8 +260,25 @@ def verify(db_path: str | Path) -> dict[str, Any]:
         experiments = conn.execute('SELECT experiment_id FROM experiments ORDER BY experiment_id').fetchall()
         for row in experiments:
             _load(conn, row['experiment_id'])
-        return {'status': 'OK', 'schema_version': _SCHEMA_VERSION, 'experiment_count': len(experiments), 'authority': 'NONE', 'export_authenticity': 'NOT_VERIFIED'}
+        return {'status': 'OK', 'schema_version': conn.execute('PRAGMA user_version').fetchone()[0], 'experiment_count': len(experiments), 'authority': 'NONE', 'export_authenticity': 'HISTORICAL_RECEIPTS_ONLY'}
     except sqlite3.Error as exc:
         raise EvidenceError(f'memory verification failed: {exc}') from exc
+    finally:
+        conn.close()
+
+def migrate(db_path: str | Path) -> dict[str, Any]:
+    """Explicit in-place v1->v2 provenance migration; historical signatures stay UNKNOWN.
+
+    Migration intentionally refuses to create a new database.
+    """
+    target = _ensure_location(Path(db_path), creating=False)
+    conn = _connect(target, creating=True)
+    try:
+        version = conn.execute('PRAGMA user_version').fetchone()[0]
+        return {'status': 'MIGRATED_OR_CURRENT', 'schema_version': version,
+                'experiment_count': conn.execute('SELECT COUNT(*) FROM experiments').fetchone()[0],
+                'historical_signature_status': 'LEGACY_UNATTESTED_WHEN_UPGRADED'}
+    except sqlite3.Error as exc:
+        raise EvidenceError(f'cannot migrate Research Memory: {exc}') from exc
     finally:
         conn.close()

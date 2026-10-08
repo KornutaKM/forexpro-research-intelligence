@@ -74,3 +74,20 @@ jobs:
           python -m forexpro_ri.cli memory dossier --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format json
           python -m forexpro_ri.cli memory dossier --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format markdown
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
+
+
+      - name: Historical signed provenance and audit gate (v0.9)
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory audit --db "$tmpdir/memory.sqlite"
+          if python -m forexpro_ri.cli memory audit --db "$tmpdir/memory.sqlite" --require-signed; then
+            echo 'ERROR: unsigned fixture passed signed intake gate' >&2
+            exit 1
+          fi
+          python -m forexpro_ri.cli memory migrate --db "$tmpdir/memory.sqlite"
+          python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
+          python -m forexpro_ri.cli bridge rehearsal

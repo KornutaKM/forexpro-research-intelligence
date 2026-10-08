@@ -30,3 +30,15 @@ For production usage, ingest only separately approved and signed exports into a 
 The implementation verifies SQLite integrity, foreign keys, and **every** stored entry's self-consistency before reporting, within the **same read transaction** used to derive all sections. It caps historical experiment count at 5,000 and analogues at ten. An operator's expected procedures are checked against the reviewed allowlist and are not a validated study battery. The report does not infer missing experimental outcomes, causal explanations, model superiority, trading profits, independence or original exporter authorization. Research Memory v0.2 does not persist the exporter's signature, even if a signed bundle was verified at ingest time.
 
 No ForexPro Core code or private scientific artifacts are needed for this release.
+
+
+## Historical intake provenance (v0.9)
+
+Dossiers now carry a focus-specific intake status (`SIGNATURE_VERIFIED`,
+`UNSIGNED_SYNTHETIC`, `LEGACY_UNATTESTED`), a hash of the immutable receipt,
+and an optional historical signer key ID and attestation digest. The whole-memory
+snapshot hash binds both experiment entry and receipt hashes. This is
+**historical recorded authentication at ingest**, not a retained detached
+signature, current-revocation check, exporter permission, evidence completeness,
+or scientific validity certification. Older schema-v1 databases appear as
+legacy unverified until migrated; previous data is never retroactively signed.

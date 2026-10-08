@@ -92,3 +92,22 @@ negative-signature analogues, recurring observations and prospective questions w
 **one SQLite read snapshot**. It verifies the entire memory store before rendering,
 cites only digests/identifiers, provides no authority, and neither accesses ForexPro Core
 nor claims real experiment provenance. See [Research Dossier](RESEARCH_DOSSIER.md).
+
+
+## v0.9 — immutable provenance, conservative migration and operational audit
+
+`intake_receipts` is keyed by `experiment_id` and bound to the immutable
+experiment `entry_sha256`. The receipt hash covers the historical verification
+status and safe signer/attestation metadata. It is stored in the **same SQLite
+transaction** as the experiment, preventing an imported result without an
+accompanying receipt. SQLite triggers prevent ordinary UPDATE/DELETE, while
+`memory verify`, `memory audit` and the Dossier reject incorrect hashes or
+missing receipts.
+
+Old schema-v1 data migrates to v2 using one verified, transactional upgrade;
+old rows receive `LEGACY_UNATTESTED`. Prior signatures cannot be inferred from
+v1 metadata and are never asserted. New unsigned imports require explicit
+synthetic-only opt-in even through the Python API. An audit may enforce signed
+intake for a nonempty history, but this **does not** establish that ForexPro
+approved the export, that a key remains trusted now, or that the research was
+scientifically valid. Read [Provenance and migration](PROVENANCE_AND_MIGRATION.md).

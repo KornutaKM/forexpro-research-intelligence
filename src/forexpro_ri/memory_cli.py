@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .contracts import EvidenceError
-from .memory import history, ingest, patterns, verify
+from .memory import history, ingest, migrate, patterns, verify
 
 
 def run(argv: list[str]) -> int:
@@ -18,7 +18,7 @@ def run(argv: list[str]) -> int:
     validation = add.add_mutually_exclusive_group(required=True)
     validation.add_argument('--trust-store', type=Path, help='Trusted public key registry outside bundle, required for real data')
     validation.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for explicit synthetic fixtures; never for private research')
-    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare', 'dossier'):
+    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare', 'dossier', 'audit', 'migrate'):
         cmd = add if key == 'ingest' else sub.add_parser(key)
         cmd.add_argument('--db', type=Path, required=True, help='Local private SQLite database path')
     intel = sub.choices['intelligence']
@@ -28,6 +28,7 @@ def run(argv: list[str]) -> int:
     comparison.add_argument('--experiment', action='append', required=True, help='Explicit stored experiment ID; repeat 2..50 times')
     comparison.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-expected procedure; repeat as needed')
     comparison.add_argument('--format', choices=['json', 'markdown'], default='json')
+    sub.choices['audit'].add_argument('--require-signed', action='store_true', help='Reject histories with any unsigned or legacy intake')
     dossier = sub.choices['dossier']
     dossier.add_argument('--focus', required=True, help='Stored closed experiment ID')
     dossier.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-declared procedure')
@@ -36,14 +37,14 @@ def run(argv: list[str]) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
-            if args.unsigned_synthetic:
-                from .importer import import_bundle
-                manifest, summary = import_bundle(args.bundle)
-                if not manifest.experiment_id.startswith('SYNTHETIC-') or any(
-                    'synthetic' not in item['observation'].lower() for item in summary['criteria']
-                ) or any('synthetic' not in item['reason'].lower() for item in summary['not_evaluable']):
-                    raise EvidenceError('--unsigned-synthetic requires synthetic-labeled experiment and observations')
-            result = ingest(args.bundle, args.db, trust_store=args.trust_store)
+            result = ingest(args.bundle, args.db, trust_store=args.trust_store, allow_unsigned_synthetic=args.unsigned_synthetic)
+        elif args.command == 'audit':
+            from .provenance import audit
+            result = audit(args.db)
+            if args.require_signed and not result['all_intakes_have_signed_receipts']:
+                raise EvidenceError('intake audit is not fully signed; cannot pass --require-signed')
+        elif args.command == 'migrate':
+            result = migrate(args.db)
         elif args.command == 'history':
             result = history(args.db)
         elif args.command == 'patterns':
