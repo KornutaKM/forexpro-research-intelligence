@@ -25,7 +25,7 @@ The example is **synthetic test evidence**, not a ForexPro production outcome. T
 - Does **not** run experimental TRAIN, validation, optimization, holdout or live/demo execution.
 - Does **not** create scientific approval or promotional authority.
 - Does **not** duplicate MLflow, TrialLedger or ForexPro verification engines.
-- Does **not** use an LLM through v0.6: classification is deterministic and based only on already recorded verdicts.
+- Does **not** use an LLM through v0.9: classification is deterministic and based only on already recorded verdicts.
 - No GitHub token required, no remote API; v0.3 uses the audited `cryptography` library for Ed25519 verification.
 
 **Important:** v0.1 only checks internal bundle integrity and declared scope. It does not authenticate that ForexPro's scientific owner approved the export. A separately reviewed and signed ForexPro exporter is needed before treating external bundles as trusted evidence.
@@ -58,7 +58,7 @@ python -m forexpro_ri.cli memory patterns --db local_data/research.sqlite
 python -m forexpro_ri.cli memory verify --db local_data/research.sqlite
 ```
 
-Re-importing identical bytes is idempotent. Conflicting exports for an existing experiment ID are rejected instead of replacing history. `memory patterns` counts affected **experiments** per recorded procedure, not the number of individual failing criteria; it does not infer causal relationships or prove profitability. `memory verify` checks database consistency and entry digests, **not exporter identity or authenticity**. The v0.3 signed importer authenticates a bundle at ingestion but v0.2 Research Memory schema does not permanently store the signer attestation; signed provenance persistence is a separate future migration. SHA-256 alone is not an authentication signature; an adversary with DB write access can bypass local protections. Keep the database on a trusted, access-restricted machine.
+Re-importing identical bytes is idempotent. Conflicting exports for an existing experiment ID are rejected instead of replacing history. `memory patterns` counts affected **experiments** per recorded procedure, not the number of individual failing criteria; it does not infer causal relationships or prove profitability. `memory verify` checks database consistency and entry digests, **not exporter identity or authenticity**. From v0.9 onward Research Memory stores an immutable digest-linked **historical intake receipt** recording whether a signature was verified. It never retains the signature or raw export; previous v1 records are conservatively marked `LEGACY_UNATTESTED` after migration. SHA-256 alone is not an authentication signature; an adversary with DB write access can bypass local protections. Keep the database on a trusted, access-restricted machine.
 
 ## Signed evidence intake (v0.3)
 
@@ -71,7 +71,7 @@ python -m forexpro_ri.cli /private/approved-closed-bundle --trust-store /private
 python -m forexpro_ri.cli memory ingest /private/approved-closed-bundle --db /private/local_data/research.sqlite --trust-store /private/approved_public_keys.json
 ```
 
-The first command does not write any file. The actual report and database remain entirely local. FRI never requests ForexPro GitHub access, broker credentials or protected HOLDOUT access. `memory ingest` now **requires** `--trust-store` unless `--unsigned-synthetic` is explicitly supplied for a synthetic-only test fixture; generic unsigned imports are rejected by the CLI. The v0.1 standalone analysis CLI still supports unsigned analysis with `export_authenticity=NOT_VERIFIED`, so never treat that legacy output as trusted.
+The first command does not write any file. The actual report and database remain entirely local. FRI never requests ForexPro GitHub access, broker credentials or protected HOLDOUT access. `memory ingest` and the Python `ingest` API **require** a trusted key store by default; explicit `--unsigned-synthetic` / `allow_unsigned_synthetic=True` is allowed only for labeled synthetic fixtures. Text labeling is not a data-loss-prevention guarantee. The v0.1 standalone analysis CLI still supports unsigned analysis with `export_authenticity=NOT_VERIFIED`, so never treat that legacy output as trusted.
 
 The `attestation.json` signature covers exact SHA-256 hashes of both raw manifest and summary bytes. The signing protocol, trust-store schema and key rotation/revocation semantics are specified in [Signed export protocol](docs/SIGNED_EXPORT_PROTOCOL.md). **No real ForexPro exports have yet been authenticated.** No code in the private ForexPro repository has been modified.
 
@@ -145,4 +145,46 @@ python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer --db loca
 python -m forexpro_ri.cli memory dossier --db local_data/demo.sqlite --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format markdown
 ```
 
-The report is **not** scientific validation, a reason to modify a closed study, or proof of independent replications. `UNOBSERVED` and `NOT_EVALUABLE` remain distinct. Expected procedures are operator declarations, not ForexPro protocol authority; SHA digests do not preserve the original exporter's signature. See [Research Dossier contract](docs/RESEARCH_DOSSIER.md).
+The report is **not** scientific validation, a reason to modify a closed study, or proof of independent replications. `UNOBSERVED` and `NOT_EVALUABLE` remain distinct. Expected procedures are operator declarations, not ForexPro protocol authority; v0.9 adds historical intake-receipt digests, but not retained signatures or fresh revocation checks. See [Research Dossier contract](docs/RESEARCH_DOSSIER.md).
+
+
+## Historical signed provenance and operational audit (v0.9)
+
+FRI now uses **Research Memory schema v2**. New intakes atomically save an immutable
+receipt bound to the stored experiment entry. Receipts record either
+`SIGNATURE_VERIFIED`, `UNSIGNED_SYNTHETIC` or `LEGACY_UNATTESTED`, plus
+hash-linked historical signer/manifest/attestation references where verified.
+There are no private keys, original signatures, free-text observations or
+full source bundles in SQLite.
+
+**The secure Python ingest API defaults to signed-only imports**, matching the
+CLI. The unsigned mode must be intentionally requested and is restricted to
+labeled synthetic fixtures. Never treat the presence of `SYNTHETIC` strings as
+an effective privacy filter for actual research data.
+
+```bash
+# A private local database, using explicitly synthetic fixtures only:
+mkdir -p local_data
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db local_data/research.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory audit --db local_data/research.sqlite
+# Fails intentionally: synthetic unsigned records are NOT trusted signed history.
+python -m forexpro_ri.cli memory audit --db local_data/research.sqlite --require-signed
+
+# Upgrade an existing v1 database in place; BACK UP privately first.
+python -m forexpro_ri.cli memory migrate --db local_data/old-research.sqlite
+
+# End-to-end signed ephemeral fixture and audit (no production secrets):
+python -m forexpro_ri.cli bridge rehearsal
+```
+
+`memory audit --require-signed` is an **operational import gate**, not a gate
+for scientific validation or approval. It succeeds only when a nonempty
+history contains exclusively historical signed receipts. Rotation/revocation
+of a key after an import is **not** revalidated from stored receipts; external
+trust management and an approved exporter are still mandatory. Hashes and
+SQLite triggers are not tamper-proof against privileged database replacement.
+Dossiers now expose the focus experiment's historical signature status and
+receipt checksum, and include receipts in the whole-history snapshot digest.
+
+See [Provenance and migration](docs/PROVENANCE_AND_MIGRATION.md) for migration
+semantics, threat model and acceptance requirements.

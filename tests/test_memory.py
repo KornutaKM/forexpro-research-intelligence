@@ -46,35 +46,35 @@ class MemoryTests(unittest.TestCase):
         (self.bundle / 'manifest.json').write_text(json.dumps(self.manifest), encoding='utf-8')
 
     def test_ingest_creates_private_db_and_verifies(self):
-        x = ingest(self.bundle, self.db)
+        x = ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(x['status'], 'IMPORTED')
         self.assertEqual(verify(self.db)['experiment_count'], 1)
         self.assertEqual(self.db.stat().st_mode & 0o777, 0o600)
         self.assertEqual(len(history(self.db)), 1)
 
     def test_idempotent_reimport(self):
-        a = ingest(self.bundle, self.db)
-        b = ingest(self.bundle, self.db)
+        a = ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
+        b = ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(b['status'], 'ALREADY_PRESENT')
         self.assertEqual(a['entry_sha256'], b['entry_sha256'])
         self.assertEqual(len(history(self.db)), 1)
 
     def test_changed_same_identity_rejected(self):
-        ingest(self.bundle, self.db)
-        self.summary['criteria'][0]['observation'] = 'different'
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
+        self.summary['criteria'][0]['observation'] = 'synthetic different'
         self.write()
         with self.assertRaisesRegex(EvidenceError, 'conflicting immutable export'):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(verify(self.db)['experiment_count'], 1)
 
     def test_memory_does_not_store_raw_observations(self):
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         data = self.db.read_bytes()
         self.assertNotIn(b'sensitive-but-synthetic-text', data)
         self.assertNotIn(b'synthetic-not-evaluable', data)
 
     def test_patterns_count_experiments_not_criteria(self):
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(patterns(self.db), [
             {'procedure': 'COST_STRESS', 'failed_experiments': 1, 'not_evaluable_experiments': 0},
             {'procedure': 'REGIME_STABILITY', 'failed_experiments': 0, 'not_evaluable_experiments': 1},
@@ -82,18 +82,18 @@ class MemoryTests(unittest.TestCase):
         self.summary['experiment_id'] = 'SYNTHETIC-Y'
         self.manifest['experiment_id'] = 'SYNTHETIC-Y'
         self.write()
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(patterns(self.db)[0]['failed_experiments'], 2)
         self.assertEqual(verify(self.db)['experiment_count'], 2)
 
     def test_import_order_does_not_change_entry_identity(self):
-        result = ingest(self.bundle, self.db)
+        result = ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.summary['criteria'].reverse()
         self.write()
         # Raw summary bytes change, therefore scientific provenance changes;
         # it is intentionally NOT considered the same immutable export.
         with self.assertRaisesRegex(EvidenceError, 'conflicting'):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertEqual(history(self.db)[0]['entry_sha256'], result['entry_sha256'])
 
     def test_cli_ingest_history_patterns_verify(self):
@@ -103,26 +103,26 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(main(['memory', 'verify', '--db', str(self.db)]), 0)
 
     def test_conflicting_evaluability_rejected(self):
-        self.summary['not_evaluable'].append({'procedure': 'COST_STRESS', 'reason': 'contradiction'})
+        self.summary['not_evaluable'].append({'procedure': 'COST_STRESS', 'reason': 'synthetic contradiction'})
         self.write()
         with self.assertRaisesRegex(EvidenceError, 'same procedure'):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
 
     def test_protected_input_rejected_and_no_database_created(self):
         self.manifest['holdout_access'] = True
         self.write()
         with self.assertRaises(EvidenceError):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         self.assertFalse(self.db.exists())
 
     def test_database_must_not_live_inside_bundle(self):
         with self.assertRaisesRegex(EvidenceError, 'inside input bundle'):
-            ingest(self.bundle, self.bundle / 'private.sqlite')
+            ingest(self.bundle, self.bundle / 'private.sqlite', allow_unsigned_synthetic=True)
 
     def test_database_symlink_rejected(self):
         self.db.symlink_to(self.root / 'other.sqlite')
         with self.assertRaisesRegex(EvidenceError, 'symlink'):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
 
     def test_read_without_existing_memory_rejected(self):
         with self.assertRaisesRegex(EvidenceError, 'missing'):
@@ -130,7 +130,7 @@ class MemoryTests(unittest.TestCase):
         self.assertFalse(self.db.exists())
 
     def test_immutable_triggers_block_updates_and_deletes(self):
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         with sqlite3.connect(self.db) as conn:
             with self.assertRaises(sqlite3.IntegrityError):
                 conn.execute("UPDATE experiments SET fail_count=0")
@@ -139,7 +139,7 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(verify(self.db)['status'], 'OK')
 
     def test_tampering_after_trigger_drop_is_detected(self):
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         with sqlite3.connect(self.db) as conn:
             conn.execute('DROP TRIGGER experiments_no_update')
             conn.execute('UPDATE experiments SET fail_count=23')
@@ -147,7 +147,7 @@ class MemoryTests(unittest.TestCase):
             verify(self.db)
 
     def test_orphan_row_detected(self):
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
         with sqlite3.connect(self.db) as conn:
             conn.execute('PRAGMA foreign_keys=OFF')
             conn.execute("INSERT INTO criteria VALUES ('ORPHAN','x','COST_STRESS','FAIL','z')")
@@ -157,7 +157,7 @@ class MemoryTests(unittest.TestCase):
     def test_sqlite_malformed_db_rejected(self):
         self.db.write_bytes(b'not-a-sqlite-database')
         with self.assertRaises(EvidenceError):
-            ingest(self.bundle, self.db)
+            ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
 
 
 if __name__ == '__main__':

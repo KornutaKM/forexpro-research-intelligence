@@ -56,7 +56,7 @@ class ComparisonTests(unittest.TestCase):
         }
         (self.bundle / 'summary.json').write_bytes(raw)
         (self.bundle / 'manifest.json').write_text(json.dumps(manifest))
-        ingest(self.bundle, self.db)
+        ingest(self.bundle, self.db, allow_unsigned_synthetic=True)
 
     def populate(self, order=('A', 'B', 'C')):
         fixtures = {

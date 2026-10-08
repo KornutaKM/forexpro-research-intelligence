@@ -17,6 +17,7 @@ from .comparison import _validate_expected
 from .contracts import EvidenceError, _ID
 from .failure_intelligence import _QUESTIONS
 from .memory import _connect, _load
+from .provenance import make_receipt, read_receipt
 
 _REPORT_SCHEMA_VERSION = 1
 _MAX_EXPERIMENTS = 5000
@@ -104,7 +105,11 @@ def build_dossier(
             for proc, status in states.items():
                 counts[(proc, status)] += 1
 
-        source_refs = [_reference(records[eid]) for eid in ids]
+        version = conn.execute('PRAGMA user_version').fetchone()[0]
+        provenance = {eid: (read_receipt(conn, eid, records[eid]['entry_sha256'])
+                            if version == 2 else make_receipt(eid, records[eid]['entry_sha256'], legacy=True))
+                      for eid in ids}
+        source_refs = [{**_reference(records[eid]), 'receipt_sha256': provenance[eid]['receipt_sha256']} for eid in ids]
         snapshot = _hash({'entries': source_refs})
         focus_row = records[focus_experiment_id]
         focus_states = all_states[focus_experiment_id]
@@ -198,7 +203,16 @@ def build_dossier(
             'recurring_negative_observations': recurring,
             'prospective_research_questions': questions,
             'min_support': min_support,
-            'source_authenticity': 'NOT_ESTABLISHED_FROM_MEMORY',
+            'source_authenticity': 'HISTORICAL_INTAKE_VERIFICATION_ONLY',
+            'focus_intake_provenance': {
+                'verification_status': provenance[focus_experiment_id]['verification_status'],
+                'receipt_sha256': provenance[focus_experiment_id]['receipt_sha256'],
+                'signer_key_id': provenance[focus_experiment_id]['signer_key_id'],
+                'attestation_sha256': provenance[focus_experiment_id]['attestation_sha256'],
+            },
+            'all_intakes_signed_at_import': bool(ids) and all(
+                r['verification_status'] == 'SIGNATURE_VERIFIED' for r in provenance.values()
+            ),
             'scientific_authority': False,
             'holdout_access': False,
             'broker_authority': False,
@@ -208,7 +222,7 @@ def build_dossier(
                 'UNOBSERVED means no stored evidence, neither PASS nor FAIL; NOT_EVALUABLE remains distinct.',
                 'History and similar cases may share data, code or lineage and are NOT proven independent.',
                 'Recurring observations and negative-signature overlap do NOT establish causality or trading profitability.',
-                'Stored SHA-256 digests verify self-consistency, NOT original exporter authorization or signature retention.',
+                'Historical intake receipts record prior signature checks, NOT current revocation, exporter authorization or retained signatures.',
                 'Questions apply to NEW preregistered research, not modification or approval of closed experiments.',
                 'No scientific approval, protected holdout access or broker trading permission is conferred.',
             ],
@@ -299,7 +313,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         '', '## Provenance and limitations', '',
         f'- Memory snapshot SHA-256: `{report["memory_snapshot_sha256"]}`',
         f'- Dossier SHA-256: `{report["report_sha256"]}`',
-        '- Export signature/authorization: **not established from Research Memory**.',
+        f'- Focus intake: **{report["focus_intake_provenance"]["verification_status"]}**.',
+        f'- Intake receipt SHA-256: `{report["focus_intake_provenance"]["receipt_sha256"]}`',
+        f'- Signer key ID (historical): `{safe(report["focus_intake_provenance"]["signer_key_id"] or "none")}`',
+        '- Current revocation, exporter authorization and scientific validation: **not established by memory**.',
         '',
     ])
     for item in report['limitations']:
