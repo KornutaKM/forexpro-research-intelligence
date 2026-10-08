@@ -43,9 +43,14 @@ Private source (authority) --sanitized closed summary export--> FRI local import
 - Add LLM-assisted narrative *only from verified report fields*, with strict tool separation and evidence citations.
 - Add UI after conformance and security tests.
 
-
 ## v0.2 Research Memory
 
-A private local SQLite database records an immutable hash-index of closed experiment summaries. It does **not** persist free-text observation/reason fields or the original summary JSON. DB rows are guarded against UPDATE/DELETE by SQLite triggers; idempotent imports do not mutate prior entries. Read APIs validate entry digests and counts; `memory verify` also runs SQLite integrity and foreign-key checks. No timestamp or generated ID is used to change a deterministic result.
+A private local SQLite database records an immutable hash-index of closed experiment summaries. It does **not** persist free-text observation/reason fields or the original summary JSON. DB rows are guarded against UPDATE/DELETE by SQLite triggers; idempotent imports do not mutate prior entries. All read APIs validate entry digests and checksums. No timestamp or generated ID is used to change a deterministic result.
 
 This is an operational index, **not** a scientific result store, historical holdout bypass, signed proof, or authenticated export mechanism. Conflicting digests for one experiment ID fail closed and require human investigation; there is no automatic overwrite. Every persisted value must be treated as private if derived from internal experiments, despite FRI's public source code.
+
+## v0.3 detached verification boundary
+
+A bundle includes an optional (for legacy development) or required (for trusted intake) `attestation.json`. FRI validates the v0.1 manifest and summary against their exact raw bytes, then authenticates a domain-separated Ed25519 signature over both digests using an operator-provisioned public-key store outside the bundle. Unknown/revoked keys, invalid signatures, unexpected fields and declared broker/HOLDOUT/promotion powers fail closed. A verified signature does not grant scientific authority. The exporter private key never enters the public FRI repository or its GitHub Actions.
+
+This v0.3 stage deliberately **does not** connect to private ForexPro Core. A separate owner-approved sanitized exporter still needs to be implemented and reviewed within the Core authority boundary before any real experiment import. Signed-import verification is not the same as data-lineage or human approval verification.

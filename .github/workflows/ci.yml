@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install FRI and Ed25519 verification dependency
+        run: python -m pip install -e .
       - name: Synthetic-only unit tests
         env:
           PYTHONPATH: src
@@ -32,6 +34,6 @@ jobs:
         run: |
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "$tmpdir"' EXIT
-          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite"
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
           python -m forexpro_ri.cli memory patterns --db "$tmpdir/memory.sqlite"
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"

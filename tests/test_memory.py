@@ -90,12 +90,14 @@ class MemoryTests(unittest.TestCase):
         result = ingest(self.bundle, self.db)
         self.summary['criteria'].reverse()
         self.write()
+        # Raw summary bytes change, therefore scientific provenance changes;
+        # it is intentionally NOT considered the same immutable export.
         with self.assertRaisesRegex(EvidenceError, 'conflicting'):
             ingest(self.bundle, self.db)
         self.assertEqual(history(self.db)[0]['entry_sha256'], result['entry_sha256'])
 
     def test_cli_ingest_history_patterns_verify(self):
-        self.assertEqual(main(['memory', 'ingest', str(self.bundle), '--db', str(self.db)]), 0)
+        self.assertEqual(main(['memory', 'ingest', str(self.bundle), '--db', str(self.db), '--unsigned-synthetic']), 0)
         self.assertEqual(main(['memory', 'history', '--db', str(self.db)]), 0)
         self.assertEqual(main(['memory', 'patterns', '--db', str(self.db)]), 0)
         self.assertEqual(main(['memory', 'verify', '--db', str(self.db)]), 0)

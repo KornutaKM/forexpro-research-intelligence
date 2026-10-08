@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forexpro-research-intelligence"
-version = "0.2.0"
+version = "0.3.0"
 description = "Read-only evidence-based research intelligence companion for ForexPro"
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{name = "ForexPro team"}]
-dependencies = []
+dependencies = ["cryptography>=46,<47"]
 
 [project.scripts]
 forexpro-ri = "forexpro_ri.cli:main"

@@ -93,6 +93,8 @@ def _ensure_location(db: Path, *, creating: bool, bundle: Path | None = None) ->
 def _connect(db_path: str | Path, *, creating: bool, bundle: Path | None = None) -> sqlite3.Connection:
     target = _ensure_location(Path(db_path), creating=creating, bundle=bundle)
     if creating:
+        # The file is private runtime state. Refuse to initialize from arbitrary
+        # pre-existing files that are not SQLite databases.
         if not target.exists():
             try:
                 with target.open('xb'):
@@ -140,10 +142,15 @@ def _load(conn: sqlite3.Connection, experiment_id: str) -> dict[str, Any]:
     return source
 
 
-def ingest(bundle_dir: str | Path, db_path: str | Path) -> dict[str, Any]:
+def ingest(bundle_dir: str | Path, db_path: str | Path, *, trust_store: str | Path | None = None) -> dict[str, Any]:
     """Atomically save one explicitly exported closed experiment; repeat is a no-op."""
     bundle = Path(bundle_dir)
-    manifest, summary = import_bundle(bundle)
+    if trust_store is not None:
+        from .attestation import verify_export
+        manifest, summary, _ = verify_export(bundle, trust_store)
+    else:
+        manifest, summary = import_bundle(bundle)
+    # A procedure cannot be both evaluated and not evaluable in one export.
     if {c['procedure'] for c in summary['criteria']} & {n['procedure'] for n in summary['not_evaluable']}:
         raise EvidenceError('same procedure cannot be evaluated and not evaluable')
     report = analyze(manifest, summary)
@@ -203,6 +210,7 @@ def patterns(db_path: str | Path) -> list[dict[str, Any]]:
     """Count affected experiments, NOT raw criteria, by recorded procedure."""
     conn = _connect(db_path, creating=False)
     try:
+        # Always verify every record before presenting a memory-derived result.
         for r in conn.execute('SELECT experiment_id FROM experiments ORDER BY experiment_id').fetchall():
             _load(conn, r['experiment_id'])
         rows = conn.execute('''
