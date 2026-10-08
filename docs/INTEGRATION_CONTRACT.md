@@ -18,3 +18,6 @@ The import contract is unchanged from v0.1. The local Research Memory rejects a 
 ## v0.3 authenticated adapter
 
 For signed imports, add `attestation.json` and provide the separate local `trusted-keys.json`. See [Signed export protocol](SIGNED_EXPORT_PROTOCOL.md). The existing source-manifest schema and protected scientific data boundaries remain unchanged. A cryptographically valid signed envelope does not make unsupported claims scientifically correct.
+
+
+For future Core integration, see [v0.5 Bridge Contract Testbench](BRIDGE_CONTRACT_TESTBENCH.md). No private source exporter or authorization is implemented.

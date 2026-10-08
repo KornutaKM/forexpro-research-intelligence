@@ -91,3 +91,23 @@ The report provides per-procedure coverage (failed, passed, not evaluable, **uno
 **Limits:** default recurring-pattern support is **2 distinct experiment IDs**. This is not independence: cases can share data, code or a research lineage. Counts are descriptive for the stored operator-selected set, not probabilities or evidence of future profitability. Co-occurrence is not causality. Textual observations/metrics are not stored in memory, so this module cannot infer why a test failed. The report has no scientific, HOLDOUT or broker authority and only proposes questions for new preregistrations.
 
 See [Failure Intelligence contract](docs/FAILURE_INTELLIGENCE.md).
+
+## Future-integration contract testbench (v0.5)
+
+ForexPro Core is still under development. **FRI v0.5 does not integrate with or modify ForexPro Core.** Instead, it implements an offline signed-export contract testbench that proves the FRI side of the proposed boundary using *synthetic data only*.
+
+```bash
+# Complete, temporary synthetic signed-export -> preflight -> memory -> diagnostics test:
+python -m forexpro_ri.cli bridge rehearsal
+
+# Optional: keep synthetic protocol files for inspection (not production evidence):
+mkdir -p local_data
+python -m forexpro_ri.cli bridge fixture --bundle local_data/synthetic-bridge --trust-store local_data/synthetic-keys.json
+python -m forexpro_ri.cli bridge preflight local_data/synthetic-bridge --trust-store local_data/synthetic-keys.json
+```
+
+The fixture private key is generated in memory and discarded; only a synthetic bundle and its **public** trust-store entry are written. Preflight verifies exact protocol files, SHA-256 bindings, Ed25519 attestation and mutually consistent recorded procedure states. It outputs a **non-authoritative**, bounded summary with no raw observations. `bridge rehearsal` additionally verifies immutable Research Memory and Failure Intelligence end-to-end.
+
+FRI cannot authenticate the source owner's permission merely because a signature validates. A future restricted, reviewed exporter in private ForexPro Core must authorize and sanitize *each* completed experiment before signing. The FRI-side testbench **never** grants scientific approval, HOLDOUT access, trading access, or release authorization. Never use the synthetic public key as an authority for real production exports.
+
+Read [Bridge Contract Testbench](docs/BRIDGE_CONTRACT_TESTBENCH.md) for the exact future Core exporter checklist and limits.
