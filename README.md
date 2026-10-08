@@ -25,7 +25,7 @@ The example is **synthetic test evidence**, not a ForexPro production outcome. T
 - Does **not** run experimental TRAIN, validation, optimization, holdout or live/demo execution.
 - Does **not** create scientific approval or promotional authority.
 - Does **not** duplicate MLflow, TrialLedger or ForexPro verification engines.
-- Does **not** use an LLM through v0.4: classification is deterministic and based only on already recorded verdicts.
+- Does **not** use an LLM through v0.6: classification is deterministic and based only on already recorded verdicts.
 - No GitHub token required, no remote API; v0.3 uses the audited `cryptography` library for Ed25519 verification.
 
 **Important:** v0.1 only checks internal bundle integrity and declared scope. It does not authenticate that ForexPro's scientific owner approved the export. A separately reviewed and signed ForexPro exporter is needed before treating external bundles as trusted evidence.
@@ -111,3 +111,23 @@ The fixture private key is generated in memory and discarded; only a synthetic b
 FRI cannot authenticate the source owner's permission merely because a signature validates. A future restricted, reviewed exporter in private ForexPro Core must authorize and sanitize *each* completed experiment before signing. The FRI-side testbench **never** grants scientific approval, HOLDOUT access, trading access, or release authorization. Never use the synthetic public key as an authority for real production exports.
 
 Read [Bridge Contract Testbench](docs/BRIDGE_CONTRACT_TESTBENCH.md) for the exact future Core exporter checklist and limits.
+
+## Research cohort comparison and evidence-visibility gaps (v0.6)
+
+FRI can compare **explicitly selected closed experiments** already in local Research Memory. It reads only their stored verdicts, IDs and digests, **not** their confidential source bundles. Operator-expected procedures are an optional input to the comparison; they are **not** inferred from, or validated against, a ForexPro ValidationContract. The output distinguishes recorded **FAIL**, **PASS**, **NOT_EVALUABLE**, and **UNOBSERVED** (no evidence). Missing or non-evaluable results never become a PASS or FAIL.
+
+Fully synthetic offline demo (does not require signing credentials or private ForexPro files):
+
+```bash
+mkdir -p local_data
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db local_data/demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer --db local_data/demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory compare --db local_data/demo.sqlite --experiment SYNTHETIC-001 --experiment SYNTHETIC-002 --expected-procedure REGIME_STABILITY
+python -m forexpro_ri.cli memory compare --db local_data/demo.sqlite --experiment SYNTHETIC-001 --experiment SYNTHETIC-002 --expected-procedure REGIME_STABILITY --format markdown
+```
+
+`--experiment` must be specified for **2–50 distinct stored experiments**; ordering does not affect the report. `--expected-procedure` is optional and repeatable. Reports have a reproducible SHA-256 and include per-criterion digests and selected experiment identities. The Markdown format is a local, human-readable presentation of the same advisory evidence.
+
+**Limits:** This is a comparison of **recorded verdicts**, not evidence that experiments share a valid protocol, comparable datasets, independent validation, or similar performance metrics. A recorded difference does not identify a cause, profit edge, or reason to change a closed experiment. No scientific authority, broker permission or HOLDOUT access is created. Report IDs/digests can themselves be sensitive metadata; do not publish real output in public issues or GitHub Actions.
+
+See [Cohort comparison contract](docs/COHORT_COMPARISON.md).

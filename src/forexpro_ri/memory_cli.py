@@ -18,12 +18,16 @@ def run(argv: list[str]) -> int:
     validation = add.add_mutually_exclusive_group(required=True)
     validation.add_argument('--trust-store', type=Path, help='Trusted public key registry outside bundle, required for real data')
     validation.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for explicit synthetic fixtures; never for private research')
-    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence'):
+    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare'):
         cmd = add if key == 'ingest' else sub.add_parser(key)
         cmd.add_argument('--db', type=Path, required=True, help='Local private SQLite database path')
     intel = sub.choices['intelligence']
     intel.add_argument('--focus', help='Optional stored experiment ID for matched historical cases')
     intel.add_argument('--min-support', type=int, default=2, help='Minimum distinct experiment support (2..5000)')
+    comparison = sub.choices['compare']
+    comparison.add_argument('--experiment', action='append', required=True, help='Explicit stored experiment ID; repeat 2..50 times')
+    comparison.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-expected procedure; repeat as needed')
+    comparison.add_argument('--format', choices=['json', 'markdown'], default='json')
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
@@ -42,6 +46,12 @@ def run(argv: list[str]) -> int:
         elif args.command == 'intelligence':
             from .failure_intelligence import build_failure_report
             result = build_failure_report(args.db, focus_experiment_id=args.focus, min_support=args.min_support)
+        elif args.command == 'compare':
+            from .comparison import build_comparison, render_markdown
+            result = build_comparison(args.db, experiment_ids=args.experiment, expected_procedures=args.expected_procedure)
+            if args.format == 'markdown':
+                print(render_markdown(result), end='')
+                return 0
         else:
             result = verify(args.db)
         print(json.dumps(result, sort_keys=True, ensure_ascii=False, indent=2))

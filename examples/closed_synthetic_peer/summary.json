@@ -1,0 +1,24 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "OOS_1",
+      "observation": "SYNTHETIC: out-of-sample acceptance criterion passed",
+      "procedure": "OUT_OF_SAMPLE",
+      "verdict": "PASS"
+    },
+    {
+      "criterion_id": "COST_1",
+      "observation": "SYNTHETIC: cost stress exceeded acceptance threshold",
+      "procedure": "COST_STRESS",
+      "verdict": "FAIL"
+    }
+  ],
+  "disposition": "CLOSED_UNSUCCESSFUL",
+  "experiment_id": "SYNTHETIC-002",
+  "not_evaluable": [
+    {
+      "procedure": "MONTE_CARLO",
+      "reason": "SYNTHETIC: insufficient completed path observations"
+    }
+  ]
+}
