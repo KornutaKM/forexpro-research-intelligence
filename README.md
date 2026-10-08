@@ -4,7 +4,7 @@ Public-source, offline, read-only **advisory** companion for a separately operat
 
 **Security model:** this repository contains only generic code and explicitly synthetic fixtures. Never commit private research results, dataset files, strategy parameters, API tokens, broker data, or internal export bundles.
 
-**MVP v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.
+**Initial v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.
 
 ## Start locally (Python 3.12+)
 
@@ -25,7 +25,7 @@ The example is **synthetic test evidence**, not a ForexPro production outcome. T
 - Does **not** run experimental TRAIN, validation, optimization, holdout or live/demo execution.
 - Does **not** create scientific approval or promotional authority.
 - Does **not** duplicate MLflow, TrialLedger or ForexPro verification engines.
-- Does **not** use an LLM in v0.1: classification is deterministic and based only on already recorded verdicts.
+- Does **not** use an LLM through v0.4: classification is deterministic and based only on already recorded verdicts.
 - No GitHub token required, no remote API; v0.3 uses the audited `cryptography` library for Ed25519 verification.
 
 **Important:** v0.1 only checks internal bundle integrity and declared scope. It does not authenticate that ForexPro's scientific owner approved the export. A separately reviewed and signed ForexPro exporter is needed before treating external bundles as trusted evidence.
@@ -74,3 +74,20 @@ python -m forexpro_ri.cli memory ingest /private/approved-closed-bundle --db /pr
 The first command does not write any file. The actual report and database remain entirely local. FRI never requests ForexPro GitHub access, broker credentials or protected HOLDOUT access. `memory ingest` now **requires** `--trust-store` unless `--unsigned-synthetic` is explicitly supplied for a synthetic-only test fixture; generic unsigned imports are rejected by the CLI. The v0.1 standalone analysis CLI still supports unsigned analysis with `export_authenticity=NOT_VERIFIED`, so never treat that legacy output as trusted.
 
 The `attestation.json` signature covers exact SHA-256 hashes of both raw manifest and summary bytes. The signing protocol, trust-store schema and key rotation/revocation semantics are specified in [Signed export protocol](docs/SIGNED_EXPORT_PROTOCOL.md). **No real ForexPro exports have yet been authenticated.** No code in the private ForexPro repository has been modified.
+
+
+## Failure Intelligence (v0.4)
+
+Build a deterministic, read-only diagnostic across **closed experiments already ingested** into local Research Memory. Use the private local database; never run this command on the public GitHub runner using real results.
+
+```bash
+# First ingest the synthetic example as in the v0.2 section.
+python -m forexpro_ri.cli memory intelligence --db local_data/research.sqlite
+python -m forexpro_ri.cli memory intelligence --db local_data/research.sqlite --focus SYNTHETIC-001 --min-support 2
+```
+
+The report provides per-procedure coverage (failed, passed, not evaluable, **unobserved**), recurring negative observations, co-failing procedure pairs, immutable evidence references, and optional analogous historical cases for a specific stored experiment. All report JSON is deterministically content-addressed. A procedure fails if **any** of its recorded criteria fails; multiple failed criteria still count as only **one experiment**. A similar case shares recorded negative signatures, not an inferred root cause; similarity is represented as an exact intersection/union fraction.
+
+**Limits:** default recurring-pattern support is **2 distinct experiment IDs**. This is not independence: cases can share data, code or a research lineage. Counts are descriptive for the stored operator-selected set, not probabilities or evidence of future profitability. Co-occurrence is not causality. Textual observations/metrics are not stored in memory, so this module cannot infer why a test failed. The report has no scientific, HOLDOUT or broker authority and only proposes questions for new preregistrations.
+
+See [Failure Intelligence contract](docs/FAILURE_INTELLIGENCE.md).

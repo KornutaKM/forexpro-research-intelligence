@@ -18,9 +18,12 @@ def run(argv: list[str]) -> int:
     validation = add.add_mutually_exclusive_group(required=True)
     validation.add_argument('--trust-store', type=Path, help='Trusted public key registry outside bundle, required for real data')
     validation.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for explicit synthetic fixtures; never for private research')
-    for key in ('ingest', 'history', 'patterns', 'verify'):
+    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence'):
         cmd = add if key == 'ingest' else sub.add_parser(key)
         cmd.add_argument('--db', type=Path, required=True, help='Local private SQLite database path')
+    intel = sub.choices['intelligence']
+    intel.add_argument('--focus', help='Optional stored experiment ID for matched historical cases')
+    intel.add_argument('--min-support', type=int, default=2, help='Minimum distinct experiment support (2..5000)')
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
@@ -36,6 +39,9 @@ def run(argv: list[str]) -> int:
             result = history(args.db)
         elif args.command == 'patterns':
             result = patterns(args.db)
+        elif args.command == 'intelligence':
+            from .failure_intelligence import build_failure_report
+            result = build_failure_report(args.db, focus_experiment_id=args.focus, min_support=args.min_support)
         else:
             result = verify(args.db)
         print(json.dumps(result, sort_keys=True, ensure_ascii=False, indent=2))

@@ -37,3 +37,11 @@ jobs:
           python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
           python -m forexpro_ri.cli memory patterns --db "$tmpdir/memory.sqlite"
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
+      - name: Synthetic-only Failure Intelligence smoke
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory intelligence --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001
