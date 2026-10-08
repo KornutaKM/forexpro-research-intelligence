@@ -54,3 +54,10 @@ This is an operational index, **not** a scientific result store, historical hold
 A bundle includes an optional (for legacy development) or required (for trusted intake) `attestation.json`. FRI validates the v0.1 manifest and summary against their exact raw bytes, then authenticates a domain-separated Ed25519 signature over both digests using an operator-provisioned public-key store outside the bundle. Unknown/revoked keys, invalid signatures, unexpected fields and declared broker/HOLDOUT/promotion powers fail closed. A verified signature does not grant scientific authority. The exporter private key never enters the public FRI repository or its GitHub Actions.
 
 This v0.3 stage deliberately **does not** connect to private ForexPro Core. A separate owner-approved sanitized exporter still needs to be implemented and reviewed within the Core authority boundary before any real experiment import. Signed-import verification is not the same as data-lineage or human approval verification.
+
+
+## v0.4 — retrospective Failure Intelligence
+
+`forexpro_ri.failure_intelligence` is a **purely observational** and offline consumer of the append-only Research Memory database. It performs a stable, read-only snapshot, verifies internal entry digests, and produces procedure-level coverage, repeated negative statuses, co-failure pairs, and optional case matching from recorded `FAIL` and `NOT_EVALUABLE` signatures. Absent evidence is a distinct `UNOBSERVED` state.
+
+It does **not** store reports in the DB, trigger experiments, claim causal root causes, or imply independence among experiment IDs. It does not retrieve original observations, scientific validation data or protected HOLDOUT. Details: [Failure Intelligence contract](FAILURE_INTELLIGENCE.md).
