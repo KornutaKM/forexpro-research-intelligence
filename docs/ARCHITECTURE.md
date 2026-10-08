@@ -67,3 +67,19 @@ It does **not** store reports in the DB, trigger experiments, claim causal root 
 The public FRI side now has a **synthetic-only** integration rehearsal (`forexpro_ri.bridge`) that creates a v1 detached signed export in a temporary isolated directory, provisions only a test **public** key, and exercises signature verification, immutable memory import, and failure diagnostics. It explicitly does not touch the private Core repository, its live scientific evidence, or protected dataset partitions. The signature fixture key is ephemeral, untrusted for production, and never persisted.
 
 `bridge preflight` restricts bundle file names to exactly `manifest.json`, `summary.json`, and `attestation.json`; rejects contradictory procedure-level evaluation states; and returns only a bounded, non-authoritative proof of **protocol** compatibility. It cannot establish owner permission or content sanitization. See [Bridge Contract Testbench](BRIDGE_CONTRACT_TESTBENCH.md).
+
+
+## v0.6 cohort comparison (no new data plane)
+
+The `comparison` module is a read-only projection over the existing, immutable
+Research Memory SQLite schema v1. It adds **no database tables**, network calls,
+broker connections, or private source data access. It accepts 2–50 explicit
+experiment IDs, verifies all stored entries in one stable transaction, and
+reports per-procedure recorded status for each selected experiment. A procedure
+is FAIL when any recorded criterion failed; otherwise PASS when at least one
+criterion passed; NOT_EVALUABLE and UNOBSERVED remain distinct. Optional
+operator-expected procedures are *not* scientific policy verification.
+
+All comparison reports are content addressed and have no scientific,
+HOLDOUT or broker authority. FRI cannot assert lineage independence or
+comparability of strategies from Research Memory's current schema.
