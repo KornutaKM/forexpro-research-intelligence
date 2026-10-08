@@ -61,3 +61,9 @@ This v0.3 stage deliberately **does not** connect to private ForexPro Core. A se
 `forexpro_ri.failure_intelligence` is a **purely observational** and offline consumer of the append-only Research Memory database. It performs a stable, read-only snapshot, verifies internal entry digests, and produces procedure-level coverage, repeated negative statuses, co-failure pairs, and optional case matching from recorded `FAIL` and `NOT_EVALUABLE` signatures. Absent evidence is a distinct `UNOBSERVED` state.
 
 It does **not** store reports in the DB, trigger experiments, claim causal root causes, or imply independence among experiment IDs. It does not retrieve original observations, scientific validation data or protected HOLDOUT. Details: [Failure Intelligence contract](FAILURE_INTELLIGENCE.md).
+
+## v0.5 — offline bridge contract testbench
+
+The public FRI side now has a **synthetic-only** integration rehearsal (`forexpro_ri.bridge`) that creates a v1 detached signed export in a temporary isolated directory, provisions only a test **public** key, and exercises signature verification, immutable memory import, and failure diagnostics. It explicitly does not touch the private Core repository, its live scientific evidence, or protected dataset partitions. The signature fixture key is ephemeral, untrusted for production, and never persisted.
+
+`bridge preflight` restricts bundle file names to exactly `manifest.json`, `summary.json`, and `attestation.json`; rejects contradictory procedure-level evaluation states; and returns only a bounded, non-authoritative proof of **protocol** compatibility. It cannot establish owner permission or content sanitization. See [Bridge Contract Testbench](BRIDGE_CONTRACT_TESTBENCH.md).

@@ -45,3 +45,8 @@ jobs:
           trap 'rm -rf "$tmpdir"' EXIT
           python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite" --unsigned-synthetic
           python -m forexpro_ri.cli memory intelligence --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001
+
+      - name: Synthetic-only signed bridge E2E rehearsal
+        env:
+          PYTHONPATH: src
+        run: python -m forexpro_ri.cli bridge rehearsal
