@@ -26,3 +26,12 @@ jobs:
         env:
           PYTHONPATH: src
         run: python -m forexpro_ri.cli examples/closed_synthetic
+      - name: Synthetic-only Research Memory lifecycle
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic --db "$tmpdir/memory.sqlite"
+          python -m forexpro_ri.cli memory patterns --db "$tmpdir/memory.sqlite"
+          python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
