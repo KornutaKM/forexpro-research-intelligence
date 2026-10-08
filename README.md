@@ -188,3 +188,27 @@ receipt checksum, and include receipts in the whole-history snapshot digest.
 
 See [Provenance and migration](docs/PROVENANCE_AND_MIGRATION.md) for migration
 semantics, threat model and acceptance requirements.
+
+## v1.0 — offline operational pipeline
+
+FRI v1.0 provides atomic **multi-bundle signed intake**, a **local provenance/readiness gate**, and automatic **JSON + Markdown Research Dossiers** for selected experiments. It remains offline, and the core ForexPro exporter is **not** implemented. A signed receipt proves signature verification at import, never scientific or export permission.
+
+Synthetic-only demo:
+
+```bash
+mkdir -p local_data
+python -m forexpro_ri.cli operations run \
+  --bundle examples/closed_synthetic \
+  --bundle examples/closed_synthetic_peer \
+  --db local_data/v1-demo.sqlite --out local_data/v1-demo-report \
+  --unsigned-synthetic --expected-procedure MONTE_CARLO
+python -m forexpro_ri.cli operations readiness --db local_data/v1-demo.sqlite --allow-unsigned-synthetic
+```
+
+Signed intake requires `--trust-store` instead of `--unsigned-synthetic`; signed batches refuse unsigned/legacy history. The pipeline never publishes raw observation texts. Real research data **must not be processed in public CI**. Detailed operating and failure semantics: [Operations v1](docs/OPERATIONS_V1.md).
+
+Inspect output integrity (local hashes, **not digital authentication**):
+
+```bash
+python -m forexpro_ri.cli operations verify-report --dir local_data/v1-demo-report
+```

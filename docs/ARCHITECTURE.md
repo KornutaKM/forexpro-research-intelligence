@@ -111,3 +111,7 @@ synthetic-only opt-in even through the Python API. An audit may enforce signed
 intake for a nonempty history, but this **does not** establish that ForexPro
 approved the export, that a key remains trusted now, or that the research was
 scientifically valid. Read [Provenance and migration](PROVENANCE_AND_MIGRATION.md).
+
+## v1.0 operational layer
+
+`operations.py` adds explicit bounded multi-bundle preflight, a single SQLite transaction for immutable memory intake, signed provenance readiness inspection, and final private publication of non-authoritative Research Dossiers. The transaction never spans filesystem report publication: report-generation failures leave already committed memory history unchanged; the workflow is designed for idempotent retry with a new report folder. See [Operations v1](OPERATIONS_V1.md).

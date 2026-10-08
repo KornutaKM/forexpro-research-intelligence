@@ -75,7 +75,6 @@ jobs:
           python -m forexpro_ri.cli memory dossier --db "$tmpdir/memory.sqlite" --focus SYNTHETIC-001 --expected-procedure MONTE_CARLO --format markdown
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
 
-
       - name: Historical signed provenance and audit gate (v0.9)
         env:
           PYTHONPATH: src
@@ -91,3 +90,24 @@ jobs:
           python -m forexpro_ri.cli memory migrate --db "$tmpdir/memory.sqlite"
           python -m forexpro_ri.cli memory verify --db "$tmpdir/memory.sqlite"
           python -m forexpro_ri.cli bridge rehearsal
+
+      - name: Synthetic-only operational pipeline (v1.0)
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli operations run \
+            --bundle examples/closed_synthetic \
+            --bundle examples/closed_synthetic_peer \
+            --db "$tmpdir/memory.sqlite" --out "$tmpdir/report" \
+            --unsigned-synthetic --expected-procedure MONTE_CARLO
+          python -m forexpro_ri.cli operations readiness \
+            --db "$tmpdir/memory.sqlite" --allow-unsigned-synthetic
+          if python -m forexpro_ri.cli operations readiness --db "$tmpdir/memory.sqlite"; then
+            echo 'ERROR: synthetic history passed signed-only readiness' >&2
+            exit 1
+          fi
+          python -m forexpro_ri.cli operations verify-report --dir "$tmpdir/report"
+          test -f "$tmpdir/report/run.json"
+          test -f "$tmpdir/report/intake.json"
