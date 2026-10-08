@@ -1,0 +1,30 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "OOS_1",
+      "observation": "SYNTHETIC: net PnL below registered threshold",
+      "procedure": "OUT_OF_SAMPLE",
+      "verdict": "FAIL"
+    },
+    {
+      "criterion_id": "COST_1",
+      "observation": "SYNTHETIC: cost sensitivity exceeded registered threshold",
+      "procedure": "COST_STRESS",
+      "verdict": "FAIL"
+    },
+    {
+      "criterion_id": "DETERMINISTIC_1",
+      "observation": "SYNTHETIC: replay equality verified",
+      "procedure": "DETERMINISTIC_RERUN",
+      "verdict": "PASS"
+    }
+  ],
+  "disposition": "CLOSED_UNSUCCESSFUL",
+  "experiment_id": "SYNTHETIC-001",
+  "not_evaluable": [
+    {
+      "procedure": "REGIME_STABILITY",
+      "reason": "SYNTHETIC: preregistered warmup was insufficient"
+    }
+  ]
+}

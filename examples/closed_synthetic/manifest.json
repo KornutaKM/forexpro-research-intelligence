@@ -1,0 +1,12 @@
+{
+  "approved_scope": "READ_ONLY_ADVISORY",
+  "broker_authority": false,
+  "experiment_id": "SYNTHETIC-001",
+  "export_kind": "CLOSED_EXPERIMENT_SUMMARY",
+  "holdout_access": false,
+  "promotion_authority": false,
+  "schema_version": 1,
+  "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_system": "forexpro",
+  "summary_sha256": "d8a876a06629830f443cf9fe8ffa3161164abd0f7249fb87c1c7f08245c2c2af"
+}

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forexpro-research-intelligence"
+version = "0.1.0"
+description = "Read-only evidence-based research intelligence companion for ForexPro"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{name = "ForexPro team"}]
+dependencies = []
+
+[project.scripts]
+forexpro-ri = "forexpro_ri.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
