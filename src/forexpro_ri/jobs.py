@@ -281,7 +281,8 @@ def _finish(queue_db: str | Path, task: dict[str, Any], *, success: bool,
     try:
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute('SELECT * FROM jobs WHERE job_id=?', (task['job_id'],)).fetchone()
-        if row is None or row['state'] != 'RUNNING' or row['lease_token'] != task['lease_token'] or row['attempts'] != task['attempt']:
+        if (row is None or row['state'] != 'RUNNING' or row['lease_token'] != task['lease_token']
+                or row['attempts'] != task['attempt'] or row['leased_until'] <= stamp):
             raise EvidenceError('stale worker lease rejected')
         if success:
             assert result is not None
@@ -324,13 +325,13 @@ def work_once(queue_db: str | Path, *, now: int | None = None) -> dict[str, Any]
                               allow_unsigned_synthetic=cfg['unsigned_synthetic'],
                               expected_procedures=cfg['expected_procedures'],
                               min_support=cfg['min_support'])
-        return _finish(queue_db, task, success=True, result=result, now=now)
     except EvidenceError:
         return _finish(queue_db, task, success=False, error='INVALID_EVIDENCE', transient=False, now=now)
     except OSError:
         return _finish(queue_db, task, success=False, error='TRANSIENT_IO', transient=True, now=now)
     except Exception:
         return _finish(queue_db, task, success=False, error='UNEXPECTED_WORKER_ERROR', transient=False, now=now)
+    return _finish(queue_db, task, success=True, result=result, now=now)
 
 
 def drain(queue_db: str | Path, *, limit: int = 50) -> dict[str, Any]:
