@@ -49,6 +49,9 @@ CREATE TRIGGER immutable_events_delete BEFORE DELETE ON events BEGIN SELECT RAIS
 PRAGMA user_version=1;
 """
 _STATES = {'QUEUED', 'RUNNING', 'RETRY', 'SUCCEEDED', 'FAILED'}
+_REQUEST_FIELDS = {'bundles', 'bundle_files_sha256', 'memory_db', 'output_root',
+                   'trust_store', 'unsigned_synthetic', 'expected_procedures', 'min_support'}
+
 
 
 def _hash(value: Any) -> str:
@@ -107,17 +110,17 @@ def _event(conn: sqlite3.Connection, job_id: str, event_type: str, attempt: int,
 
 
 def _validate_config(cfg: dict[str, Any]) -> None:
-    required = {'bundles', 'bundle_files_sha256', 'memory_db', 'output_root',
-                'trust_store', 'unsigned_synthetic', 'expected_procedures', 'min_support'}
-    if not isinstance(cfg, dict) or not required.issubset(cfg) or set(cfg) - required - {'trust_store_sha256'}:
+    if not isinstance(cfg, dict) or set(cfg) not in (_REQUEST_FIELDS, _REQUEST_FIELDS | {'trust_store_sha256'}):
         raise EvidenceError('unsupported queue request shape')
+    # Legacy v2.0 unsigned jobs can be read, but legacy signed jobs cannot
+    # be processed until resubmitted with a pinned trust store.
     if 'trust_store_sha256' in cfg:
-        stamp = cfg['trust_store_sha256']
-        if stamp is not None and (not isinstance(stamp, str) or len(stamp) != 64
-                                  or any(c not in '0123456789abcdef' for c in stamp)):
-            raise EvidenceError('invalid trust store digest')
-        if (cfg['trust_store'] is None) != (stamp is None):
-            raise EvidenceError('trust digest and trust mode mismatch')
+        digest = cfg['trust_store_sha256']
+        if cfg['trust_store'] is None:
+            if digest is not None:
+                raise EvidenceError('unsigned jobs must not pin a trust store')
+        elif not isinstance(digest, str) or len(digest) != 64 or any(c not in '0123456789abcdef' for c in digest):
+            raise EvidenceError('invalid pinned trust store digest')
     if type(cfg['unsigned_synthetic']) is not bool:
         raise EvidenceError('invalid trust mode')
     if cfg['unsigned_synthetic'] == (cfg['trust_store'] is not None):
@@ -155,17 +158,20 @@ def _fingerprint(directory: Path, *, signed: bool) -> str:
     return _hash({'files': parts})
 
 
-def _trust_fingerprint(path: Path) -> str:
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
-        raise EvidenceError('signed trust store missing, symbolic or oversized')
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _trust_digest(path: str | Path) -> str:
+    p = Path(path)
+    if p.is_symlink() or p.parent.is_symlink() or not p.is_file() or not 0 < p.stat().st_size <= 1024 * 1024:
+        raise EvidenceError('trust store must be a bounded regular non-symlink file')
+    return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
 def _check_inputs(cfg: dict[str, Any]) -> None:
     _validate_config(cfg)
-    if cfg['trust_store'] is not None and 'trust_store_sha256' in cfg:
-        if _trust_fingerprint(Path(cfg['trust_store'])) != cfg['trust_store_sha256']:
-            raise EvidenceError('trust store changed after queue submission; submit a new job')
+    if cfg['trust_store'] is not None:
+        if 'trust_store_sha256' not in cfg:
+            raise EvidenceError('legacy signed job has no pinned trust store; submit a new job')
+        if _trust_digest(cfg['trust_store']) != cfg['trust_store_sha256']:
+            raise EvidenceError('trust store changed since job submission; submit a new job')
     for path, digest in zip(cfg['bundles'], cfg['bundle_files_sha256']):
         if _fingerprint(Path(path), signed=not cfg['unsigned_synthetic']) != digest:
             raise EvidenceError('queue bundle content changed after submission')
@@ -208,8 +214,8 @@ def submit(queue_db: str | Path, bundle_dirs: Sequence[str | Path], memory_db: s
         'bundle_files_sha256': [_fingerprint(x, signed=not allow_unsigned_synthetic) for x in resolved],
         'memory_db': str(memory.resolve()), 'output_root': str(output.resolve()),
         'trust_store': str(Path(trust_store).resolve()) if trust_store else None,
-        'trust_store_sha256': _trust_fingerprint(Path(trust_store)) if trust_store else None,
         'unsigned_synthetic': allow_unsigned_synthetic,
+        'trust_store_sha256': _trust_digest(trust_store) if trust_store is not None else None,
         'expected_procedures': sorted(expected_procedures), 'min_support': min_support,
     }
     _validate_config(cfg)
@@ -264,8 +270,7 @@ def claim(queue_db: str | Path, *, now: int | None = None, lease_seconds: int = 
         _event(conn, row['job_id'], 'CLAIMED', attempt, stamp)
         conn.commit()
         return {'job_id': row['job_id'], 'attempt': attempt, 'lease_token': token,
-                'request_json': row['request_json'], 'request_sha256': row['request_sha256'],
-                'leased_until': stamp+lease_seconds}
+                'request_json': row['request_json'], 'leased_until': stamp+lease_seconds}
     except BaseException:
         conn.rollback()
         raise
@@ -281,8 +286,9 @@ def _finish(queue_db: str | Path, task: dict[str, Any], *, success: bool,
     try:
         conn.execute('BEGIN IMMEDIATE')
         row = conn.execute('SELECT * FROM jobs WHERE job_id=?', (task['job_id'],)).fetchone()
-        if row is None or row['state'] != 'RUNNING' or row['lease_token'] != task['lease_token'] or row['attempts'] != task['attempt']:
-            raise EvidenceError('stale worker lease rejected')
+        if (row is None or row['state'] != 'RUNNING' or row['lease_token'] != task['lease_token']
+                or row['attempts'] != task['attempt'] or row['leased_until'] <= stamp):
+            raise EvidenceError('stale worker lease (expired or invalid) rejected')
         if success:
             assert result is not None
             state, code, due = 'SUCCEEDED', None, stamp
@@ -313,10 +319,10 @@ def work_once(queue_db: str | Path, *, now: int | None = None) -> dict[str, Any]
     task = claim(queue_db, now=now)
     if task is None:
         return {'status': 'IDLE'}
+    # Run exceptions and acknowledgement errors are separated: never attempt a
+    # second completion when the lease fence or report verification rejects one.
     try:
         cfg = json.loads(task['request_json'])
-        if _hash(cfg) != task['request_sha256']:
-            raise EvidenceError('queue request digest mismatch before execution')
         _check_inputs(cfg)
         out = Path(cfg['output_root']) / f"fri-{task['job_id']}-attempt-{task['attempt']}"
         result = run_pipeline(cfg['bundles'], cfg['memory_db'], out,
@@ -324,13 +330,13 @@ def work_once(queue_db: str | Path, *, now: int | None = None) -> dict[str, Any]
                               allow_unsigned_synthetic=cfg['unsigned_synthetic'],
                               expected_procedures=cfg['expected_procedures'],
                               min_support=cfg['min_support'])
-        return _finish(queue_db, task, success=True, result=result, now=now)
     except EvidenceError:
         return _finish(queue_db, task, success=False, error='INVALID_EVIDENCE', transient=False, now=now)
     except OSError:
         return _finish(queue_db, task, success=False, error='TRANSIENT_IO', transient=True, now=now)
     except Exception:
         return _finish(queue_db, task, success=False, error='UNEXPECTED_WORKER_ERROR', transient=False, now=now)
+    return _finish(queue_db, task, success=True, result=result, now=now)
 
 
 def drain(queue_db: str | Path, *, limit: int = 50) -> dict[str, Any]:

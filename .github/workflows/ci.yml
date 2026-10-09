@@ -160,33 +160,20 @@ jobs:
           python -m forexpro_ri.cli jobs health --queue "$tmpdir/signed-jobs.sqlite" \
             --db "$tmpdir/signed-memory.sqlite"
 
-      - name: Synthetic-only v2.1 queue drift and v2.2 research program
+      - name: Synthetic-only reliability and Research Program v2.2
         env:
           PYTHONPATH: src
         run: |
           tmpdir="$(mktemp -d)"
           trap 'rm -rf "$tmpdir"' EXIT
-          mkdir -p "$tmpdir/reports"
-          python -m forexpro_ri.cli jobs submit \
-            --queue "$tmpdir/jobs.sqlite" --db "$tmpdir/memory.sqlite" \
-            --out-root "$tmpdir/reports" \
-            --bundle examples/closed_synthetic \
-            --bundle examples/closed_synthetic_peer --unsigned-synthetic
-          python -m forexpro_ri.cli jobs watch \
-            --queue "$tmpdir/jobs.sqlite" --inspect-sources
-          python -m forexpro_ri.cli jobs work --queue "$tmpdir/jobs.sqlite"
-          python -m forexpro_ri.cli jobs verify --queue "$tmpdir/jobs.sqlite"
-          python -m forexpro_ri.cli memory program --db "$tmpdir/memory.sqlite" \
-            --allow-unsigned-synthetic --expected-procedure RISK_LIMITS --format markdown
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic \
+            --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer \
+            --db "$tmpdir/memory.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory program \
+            --db "$tmpdir/memory.sqlite" --expected-procedure MONTE_CARLO \
+            --expected-procedure REGIME_STABILITY --unsigned-synthetic --format markdown
           if python -m forexpro_ri.cli memory program --db "$tmpdir/memory.sqlite"; then
-            echo 'ERROR: unsigned research history passed signed-only program gate' >&2
+            echo 'ERROR: unsigned memory passed signed-only research program' >&2
             exit 1
           fi
-          python -m forexpro_ri.cli bridge fixture \
-            --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
-          python -m forexpro_ri.cli jobs submit \
-            --queue "$tmpdir/signed-jobs.sqlite" --db "$tmpdir/signed-memory.sqlite" \
-            --out-root "$tmpdir/reports" \
-            --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
-          python -m forexpro_ri.cli jobs work --queue "$tmpdir/signed-jobs.sqlite"
-          python -m forexpro_ri.cli memory program --db "$tmpdir/signed-memory.sqlite"

@@ -35,10 +35,11 @@ def run(argv: list[str]) -> int:
     dossier.add_argument('--min-support', type=int, default=2, help='Minimum distinct experiment support (2..5000)')
     dossier.add_argument('--format', choices=['json', 'markdown'], default='json')
     program = sub.choices['program']
-    program.add_argument('--expected-procedure', action='append', default=[])
+    program.add_argument('--expected-procedure', action='append', default=[], help='Operator-declared, not a scientific ValidationContract')
     program.add_argument('--min-support', type=int, default=2)
-    program.add_argument('--allow-unsigned-synthetic', action='store_true')
-    program.add_argument('--format', choices=['json','markdown'], default='json')
+    program.add_argument('--max-items', type=int, default=20)
+    program.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for synthetic fixture reports')
+    program.add_argument('--format', choices=['json', 'markdown'], default='json')
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
@@ -64,9 +65,10 @@ def run(argv: list[str]) -> int:
                 print(render_markdown(result), end='')
                 return 0
         elif args.command == 'program':
-            from .research_program import build_program, render_markdown as render_program_markdown
-            result = build_program(args.db, expected_procedures=args.expected_procedure,
-                                   min_support=args.min_support, require_signed=not args.allow_unsigned_synthetic)
+            from .research_program import build_research_program, render_markdown as render_program_markdown
+            result = build_research_program(args.db, expected_procedures=args.expected_procedure,
+                                            min_support=args.min_support, max_items=args.max_items,
+                                            allow_unsigned_synthetic=args.unsigned_synthetic)
             if args.format == 'markdown':
                 print(render_program_markdown(result), end='')
                 return 0

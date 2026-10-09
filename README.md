@@ -7,29 +7,42 @@ Public-source, offline, read-only **advisory** companion for a separately operat
 **Initial v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.
 
 
-## v2.1–v2.2 — hardening and evidence-linked research-question triage
+## v2.2 — reliability gates and evidence-backed research program
 
-The queue now freezes the signed-job public-key trust-store SHA-256 at submission;
-a worker rejects post-submission changes and verifies the job request digest
-before intake. Old v2.0 signed jobs are readable, but `jobs watch` identifies
-requests without a pinned trust store. No automatic reauthorization is given.
+**v2.1 reliability hardening:** each newly submitted signed queue job pins the exact
+SHA-256 of the externally provisioned public-key trust-store file. Signed jobs
+**fail closed** if the trust store is modified, lost or replaced before the worker
+executes. Resubmit after a legitimate rotation/revocation; an older v2.0 signed
+queued job without a pinned trust-store hash also needs resubmission. Queue
+completion is fenced against **expired leases**, even before another worker
+claims the task. The worker cannot acknowledge an expired attempt; the next
+claim handles recovery. These protections do not replace OS-level access control
+or make SQLite tamper-proof. The default 15-minute lease requires the complete
+job to finish within its lease; no heartbeat/long-running daemon is provided.
+
+**v2.2 Research Program:** a fully deterministic, evidence-linked advisory worklist
+from one verified Research Memory read snapshot. It distinguishes repeated
+FAIL, repeated NOT_EVALUABLE, and **operator-declared** missing-coverage gaps;
+counts are per distinct stored experiment, not criteria. Worklist order is a
+fixed *reading order*, not a trading rank, causal explanation, scientific
+validation, or recommendation to allocate capital. Historical signature
+receipts must all be verified at import unless explicit synthetic mode is used.
 
 ```bash
-python -m forexpro_ri.cli jobs watch --queue local_data/jobs.sqlite --inspect-sources
-python -m forexpro_ri.cli memory program --db local_data/research.sqlite \
-  --expected-procedure MONTE_CARLO --format markdown
-# Explicit demo only, after importing synthetic fixtures:
-python -m forexpro_ri.cli memory program --db local_data/demo.sqlite \
-  --allow-unsigned-synthetic --expected-procedure RISK_LIMITS
+mkdir -p local_data
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic \
+  --db local_data/v22-demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer \
+  --db local_data/v22-demo.sqlite --unsigned-synthetic
+python -m forexpro_ri.cli memory program --db local_data/v22-demo.sqlite \
+  --expected-procedure MONTE_CARLO --expected-procedure REGIME_STABILITY \
+  --min-support 2 --format markdown --unsigned-synthetic
 ```
 
-`memory program` defaults to signed-only historical intakes and checks the
-entire immutable Research Memory. It ranks **operator review topics**, not
-profitability or scientific validity. It distinguishes FAIL/PASS/NOT_EVALUABLE/
-UNOBSERVED and never treats distinct experiment IDs as independent replications.
-No ForexPro exporter, live service or AI execution is provided.
-
-Details: [Hardening and Research Program v2.2](docs/PRODUCTION_AND_RESEARCH_V22.md).
+For genuine evidence, **omit** `--unsigned-synthetic` and use operator-approved
+signed exports; the report's historical signature gate still does *not*
+authenticate source export permission or current key-revocation status.
+See [Reliability and Research Program v2.2](docs/RELIABILITY_AND_RESEARCH_PROGRAM.md).
 
 ## v2.0 — durable offline advisory job runner
 
@@ -72,7 +85,7 @@ The example is **synthetic test evidence**, not a ForexPro production outcome. T
 - Does **not** run experimental TRAIN, validation, optimization, holdout or live/demo execution.
 - Does **not** create scientific approval or promotional authority.
 - Does **not** duplicate MLflow, TrialLedger or ForexPro verification engines.
-- Does **not** use an LLM through v2.0: classification is deterministic and based only on already recorded verdicts.
+- Does **not** use an LLM through v2.2: classification is deterministic and based only on already recorded verdicts.
 - No GitHub token required, no remote API; v0.3 uses the audited `cryptography` library for Ed25519 verification.
 
 **Important:** v0.1 only checks internal bundle integrity and declared scope. It does not authenticate that ForexPro's scientific owner approved the export. A separately reviewed and signed ForexPro exporter is needed before treating external bundles as trusted evidence.
