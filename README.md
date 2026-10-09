@@ -212,3 +212,25 @@ Inspect output integrity (local hashes, **not digital authentication**):
 ```bash
 python -m forexpro_ri.cli operations verify-report --dir local_data/v1-demo-report
 ```
+
+## v1.1 — private backup, recovery and drill
+
+The standalone **Research Memory Recovery** module can snapshot a live SQLite
+history, check its SHA-256 and semantic/provenance integrity, restore it to a
+**new path only**, and rehearse the entire cycle without changing the active
+research database. A backup has no scientific or broker authority and is **not
+cryptographically authenticated**. Keep it private and protect it independently.
+
+```bash
+mkdir -p local_data private_backups
+python -m forexpro_ri.cli recovery backup \
+  --db local_data/research.sqlite --out private_backups/snapshot-001
+python -m forexpro_ri.cli recovery verify --dir private_backups/snapshot-001
+python -m forexpro_ri.cli recovery restore \
+  --dir private_backups/snapshot-001 --db local_data/recovered.sqlite
+python -m forexpro_ri.cli recovery drill --db local_data/recovered.sqlite
+```
+
+See [Recovery v1](docs/RECOVERY_V1.md) for threat model, WAL handling,
+private-storage rules and non-overwrite semantics. All examples in public CI
+use synthetic data. No integration with unfinished ForexPro Core is required.

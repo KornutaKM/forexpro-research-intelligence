@@ -111,3 +111,24 @@ jobs:
           python -m forexpro_ri.cli operations verify-report --dir "$tmpdir/report"
           test -f "$tmpdir/report/run.json"
           test -f "$tmpdir/report/intake.json"
+
+      - name: Synthetic-only Research Memory recovery drill (v1.1)
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic \
+            --db "$tmpdir/live.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli recovery backup \
+            --db "$tmpdir/live.sqlite" --out "$tmpdir/snapshot"
+          python -m forexpro_ri.cli recovery verify --dir "$tmpdir/snapshot"
+          python -m forexpro_ri.cli recovery restore \
+            --dir "$tmpdir/snapshot" --db "$tmpdir/restored.sqlite"
+          python -m forexpro_ri.cli recovery drill --db "$tmpdir/restored.sqlite"
+          python -m forexpro_ri.cli memory audit --db "$tmpdir/restored.sqlite"
+          if python -m forexpro_ri.cli recovery restore \
+            --dir "$tmpdir/snapshot" --db "$tmpdir/live.sqlite"; then
+            echo 'ERROR: recovery overwrote a live database' >&2
+            exit 1
+          fi

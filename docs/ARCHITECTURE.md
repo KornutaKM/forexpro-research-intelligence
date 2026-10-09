@@ -115,3 +115,12 @@ scientifically valid. Read [Provenance and migration](PROVENANCE_AND_MIGRATION.m
 ## v1.0 operational layer
 
 `operations.py` adds explicit bounded multi-bundle preflight, a single SQLite transaction for immutable memory intake, signed provenance readiness inspection, and final private publication of non-authoritative Research Dossiers. The transaction never spans filesystem report publication: report-generation failures leave already committed memory history unchanged; the workflow is designed for idempotent retry with a new report folder. See [Operations v1](OPERATIONS_V1.md).
+
+## v1.1 recovery boundary
+
+An offline Recovery module captures consistent SQLite Online Backup snapshots,
+verifies per-experiment content and provenance receipts, restores only to a
+previously nonexistent database path, and rehearses the complete process in
+private temporary directories. This module does not create or authenticate
+source experiments, does not run scientific procedures, and does not transmit
+files to the unfinished ForexPro Core. See [Recovery v1](RECOVERY_V1.md).
