@@ -124,3 +124,7 @@ previously nonexistent database path, and rehearses the complete process in
 private temporary directories. This module does not create or authenticate
 source experiments, does not run scientific procedures, and does not transmit
 files to the unfinished ForexPro Core. See [Recovery v1](RECOVERY_V1.md).
+
+## v2.0 operational runtime
+
+FRI now has a separate private durable job queue (`jobs.sqlite`) alongside the existing private Research Memory (`research.sqlite`). Only human/operator-selected bundles are enqueued. The worker verifies input SHA-256 fingerprints and current local signing trust, performs non-authoritative batch analysis and publishes Research Dossiers. Bounded claim leases, retry/backoff, idempotent Research Memory imports, event integrity checks and manual dead-letter recovery support reliable *at-least-once* processing. No network service, remote polling, core integration or research-experiment execution is included. See [Operations v2.0](OPERATIONS_V2.md).

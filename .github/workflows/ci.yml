@@ -132,3 +132,30 @@ jobs:
             echo 'ERROR: recovery overwrote a live database' >&2
             exit 1
           fi
+
+      - name: Synthetic-only offline durable jobs v2.0
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          mkdir -p "$tmpdir/reports"
+          python -m forexpro_ri.cli jobs submit \
+            --queue "$tmpdir/jobs.sqlite" --db "$tmpdir/memory.sqlite" \
+            --out-root "$tmpdir/reports" \
+            --bundle examples/closed_synthetic \
+            --bundle examples/closed_synthetic_peer --unsigned-synthetic
+          python -m forexpro_ri.cli jobs work --queue "$tmpdir/jobs.sqlite"
+          python -m forexpro_ri.cli jobs verify --queue "$tmpdir/jobs.sqlite"
+          python -m forexpro_ri.cli jobs health --queue "$tmpdir/jobs.sqlite" \
+            --db "$tmpdir/memory.sqlite" --allow-unsigned-synthetic
+          python -m forexpro_ri.cli bridge fixture \
+            --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
+          python -m forexpro_ri.cli jobs submit \
+            --queue "$tmpdir/signed-jobs.sqlite" --db "$tmpdir/signed-memory.sqlite" \
+            --out-root "$tmpdir/reports" \
+            --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
+          python -m forexpro_ri.cli jobs work --queue "$tmpdir/signed-jobs.sqlite"
+          python -m forexpro_ri.cli jobs verify --queue "$tmpdir/signed-jobs.sqlite"
+          python -m forexpro_ri.cli jobs health --queue "$tmpdir/signed-jobs.sqlite" \
+            --db "$tmpdir/signed-memory.sqlite"
