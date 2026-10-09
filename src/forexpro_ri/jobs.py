@@ -107,10 +107,17 @@ def _event(conn: sqlite3.Connection, job_id: str, event_type: str, attempt: int,
 
 
 def _validate_config(cfg: dict[str, Any]) -> None:
-    if not isinstance(cfg, dict) or set(cfg) != {
-        'bundles', 'bundle_files_sha256', 'memory_db', 'output_root', 'trust_store',
-        'unsigned_synthetic', 'expected_procedures', 'min_support'}:
+    required = {'bundles', 'bundle_files_sha256', 'memory_db', 'output_root',
+                'trust_store', 'unsigned_synthetic', 'expected_procedures', 'min_support'}
+    if not isinstance(cfg, dict) or not required.issubset(cfg) or set(cfg) - required - {'trust_store_sha256'}:
         raise EvidenceError('unsupported queue request shape')
+    if 'trust_store_sha256' in cfg:
+        stamp = cfg['trust_store_sha256']
+        if stamp is not None and (not isinstance(stamp, str) or len(stamp) != 64
+                                  or any(c not in '0123456789abcdef' for c in stamp)):
+            raise EvidenceError('invalid trust store digest')
+        if (cfg['trust_store'] is None) != (stamp is None):
+            raise EvidenceError('trust digest and trust mode mismatch')
     if type(cfg['unsigned_synthetic']) is not bool:
         raise EvidenceError('invalid trust mode')
     if cfg['unsigned_synthetic'] == (cfg['trust_store'] is not None):
@@ -148,8 +155,17 @@ def _fingerprint(directory: Path, *, signed: bool) -> str:
     return _hash({'files': parts})
 
 
+def _trust_fingerprint(path: Path) -> str:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
+        raise EvidenceError('signed trust store missing, symbolic or oversized')
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _check_inputs(cfg: dict[str, Any]) -> None:
     _validate_config(cfg)
+    if cfg['trust_store'] is not None and 'trust_store_sha256' in cfg:
+        if _trust_fingerprint(Path(cfg['trust_store'])) != cfg['trust_store_sha256']:
+            raise EvidenceError('trust store changed after queue submission; submit a new job')
     for path, digest in zip(cfg['bundles'], cfg['bundle_files_sha256']):
         if _fingerprint(Path(path), signed=not cfg['unsigned_synthetic']) != digest:
             raise EvidenceError('queue bundle content changed after submission')
@@ -192,6 +208,7 @@ def submit(queue_db: str | Path, bundle_dirs: Sequence[str | Path], memory_db: s
         'bundle_files_sha256': [_fingerprint(x, signed=not allow_unsigned_synthetic) for x in resolved],
         'memory_db': str(memory.resolve()), 'output_root': str(output.resolve()),
         'trust_store': str(Path(trust_store).resolve()) if trust_store else None,
+        'trust_store_sha256': _trust_fingerprint(Path(trust_store)) if trust_store else None,
         'unsigned_synthetic': allow_unsigned_synthetic,
         'expected_procedures': sorted(expected_procedures), 'min_support': min_support,
     }
@@ -247,7 +264,8 @@ def claim(queue_db: str | Path, *, now: int | None = None, lease_seconds: int = 
         _event(conn, row['job_id'], 'CLAIMED', attempt, stamp)
         conn.commit()
         return {'job_id': row['job_id'], 'attempt': attempt, 'lease_token': token,
-                'request_json': row['request_json'], 'leased_until': stamp+lease_seconds}
+                'request_json': row['request_json'], 'request_sha256': row['request_sha256'],
+                'leased_until': stamp+lease_seconds}
     except BaseException:
         conn.rollback()
         raise
@@ -297,6 +315,8 @@ def work_once(queue_db: str | Path, *, now: int | None = None) -> dict[str, Any]
         return {'status': 'IDLE'}
     try:
         cfg = json.loads(task['request_json'])
+        if _hash(cfg) != task['request_sha256']:
+            raise EvidenceError('queue request digest mismatch before execution')
         _check_inputs(cfg)
         out = Path(cfg['output_root']) / f"fri-{task['job_id']}-attempt-{task['attempt']}"
         result = run_pipeline(cfg['bundles'], cfg['memory_db'], out,

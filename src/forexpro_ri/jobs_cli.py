@@ -27,6 +27,10 @@ def run(argv: list[str]) -> int:
     work = commands.add_parser('work', help='Process one due job, or drain bounded work')
     work.add_argument('--queue', type=Path, required=True)
     work.add_argument('--limit', type=int, default=1)
+    watch = commands.add_parser('watch', help='Read-only queue health, overdue jobs, input drift and pinned trust')
+    watch.add_argument('--queue', type=Path, required=True)
+    watch.add_argument('--inspect-sources', action='store_true', help='Re-check local source bytes; never run research')
+    watch.add_argument('--overdue-seconds', type=int, default=3600)
     for name in ('status', 'verify'):
         cmd = commands.add_parser(name)
         cmd.add_argument('--queue', type=Path, required=True)
@@ -39,7 +43,11 @@ def run(argv: list[str]) -> int:
     retry_cmd.add_argument('--job-id', required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == 'submit':
+        if args.command == 'watch':
+            from .queue_watch import inspect
+            result = inspect(args.queue, inspect_sources=args.inspect_sources,
+                             overdue_seconds=args.overdue_seconds)
+        elif args.command == 'submit':
             result = submit(args.queue, args.bundle, args.db, args.out_root,
                             trust_store=args.trust_store, allow_unsigned_synthetic=args.unsigned_synthetic,
                             expected_procedures=args.expected_procedure, min_support=args.min_support,

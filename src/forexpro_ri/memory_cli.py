@@ -18,7 +18,7 @@ def run(argv: list[str]) -> int:
     validation = add.add_mutually_exclusive_group(required=True)
     validation.add_argument('--trust-store', type=Path, help='Trusted public key registry outside bundle, required for real data')
     validation.add_argument('--unsigned-synthetic', action='store_true', help='ONLY for explicit synthetic fixtures; never for private research')
-    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare', 'dossier', 'audit', 'migrate'):
+    for key in ('ingest', 'history', 'patterns', 'verify', 'intelligence', 'compare', 'dossier', 'program', 'audit', 'migrate'):
         cmd = add if key == 'ingest' else sub.add_parser(key)
         cmd.add_argument('--db', type=Path, required=True, help='Local private SQLite database path')
     intel = sub.choices['intelligence']
@@ -34,6 +34,11 @@ def run(argv: list[str]) -> int:
     dossier.add_argument('--expected-procedure', action='append', default=[], help='Optional operator-declared procedure')
     dossier.add_argument('--min-support', type=int, default=2, help='Minimum distinct experiment support (2..5000)')
     dossier.add_argument('--format', choices=['json', 'markdown'], default='json')
+    program = sub.choices['program']
+    program.add_argument('--expected-procedure', action='append', default=[])
+    program.add_argument('--min-support', type=int, default=2)
+    program.add_argument('--allow-unsigned-synthetic', action='store_true')
+    program.add_argument('--format', choices=['json','markdown'], default='json')
     args = parser.parse_args(argv)
     try:
         if args.command == 'ingest':
@@ -57,6 +62,13 @@ def run(argv: list[str]) -> int:
             result = build_comparison(args.db, experiment_ids=args.experiment, expected_procedures=args.expected_procedure)
             if args.format == 'markdown':
                 print(render_markdown(result), end='')
+                return 0
+        elif args.command == 'program':
+            from .research_program import build_program, render_markdown as render_program_markdown
+            result = build_program(args.db, expected_procedures=args.expected_procedure,
+                                   min_support=args.min_support, require_signed=not args.allow_unsigned_synthetic)
+            if args.format == 'markdown':
+                print(render_program_markdown(result), end='')
                 return 0
         elif args.command == 'dossier':
             from .dossier import build_dossier, render_markdown as render_dossier_markdown

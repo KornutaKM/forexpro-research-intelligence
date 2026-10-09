@@ -7,6 +7,30 @@ Public-source, offline, read-only **advisory** companion for a separately operat
 **Initial v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.
 
 
+## v2.1–v2.2 — hardening and evidence-linked research-question triage
+
+The queue now freezes the signed-job public-key trust-store SHA-256 at submission;
+a worker rejects post-submission changes and verifies the job request digest
+before intake. Old v2.0 signed jobs are readable, but `jobs watch` identifies
+requests without a pinned trust store. No automatic reauthorization is given.
+
+```bash
+python -m forexpro_ri.cli jobs watch --queue local_data/jobs.sqlite --inspect-sources
+python -m forexpro_ri.cli memory program --db local_data/research.sqlite \
+  --expected-procedure MONTE_CARLO --format markdown
+# Explicit demo only, after importing synthetic fixtures:
+python -m forexpro_ri.cli memory program --db local_data/demo.sqlite \
+  --allow-unsigned-synthetic --expected-procedure RISK_LIMITS
+```
+
+`memory program` defaults to signed-only historical intakes and checks the
+entire immutable Research Memory. It ranks **operator review topics**, not
+profitability or scientific validity. It distinguishes FAIL/PASS/NOT_EVALUABLE/
+UNOBSERVED and never treats distinct experiment IDs as independent replications.
+No ForexPro exporter, live service or AI execution is provided.
+
+Details: [Hardening and Research Program v2.2](docs/PRODUCTION_AND_RESEARCH_V22.md).
+
 ## v2.0 — durable offline advisory job runner
 
 **Release 2.0** combines the existing signed evidence, append-only memory, failure intelligence, dossiers, atomic batch ingestion and recovery modules into a durable, operator-driven job workflow. Jobs live in a **separate private SQLite queue** and can survive process restarts. The system does not run trading experiments or interact with ForexPro Core.
