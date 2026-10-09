@@ -14,6 +14,9 @@ from .importer import import_bundle
 
 def main(argv: list[str] | None = None) -> int:
     command_line = list(sys.argv[1:] if argv is None else argv)
+    if command_line and command_line[0] == 'jobs':
+        from .jobs_cli import run
+        return run(command_line[1:])
     if command_line and command_line[0] == 'recovery':
         from .recovery_cli import run
         return run(command_line[1:])

@@ -1,3 +1,3 @@
-"""ForexPro Research Intelligence — read-only advisory evidence analysis."""
+"""ForexPro Research Intelligence — offline, read-only advisory system."""
 
-__version__ = "0.9.0"
+__version__ = "2.0.0"

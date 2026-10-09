@@ -6,6 +6,29 @@ Public-source, offline, read-only **advisory** companion for a separately operat
 
 **Initial v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.
 
+
+## v2.0 — durable offline advisory job runner
+
+**Release 2.0** combines the existing signed evidence, append-only memory, failure intelligence, dossiers, atomic batch ingestion and recovery modules into a durable, operator-driven job workflow. Jobs live in a **separate private SQLite queue** and can survive process restarts. The system does not run trading experiments or interact with ForexPro Core.
+
+```bash
+python -m pip install -e .
+mkdir -p local_data local_data/reports
+python -m forexpro_ri.cli jobs submit --queue local_data/jobs.sqlite \
+  --db local_data/research.sqlite --out-root local_data/reports \
+  --bundle examples/closed_synthetic --bundle examples/closed_synthetic_peer \
+  --unsigned-synthetic
+python -m forexpro_ri.cli jobs work --queue local_data/jobs.sqlite
+python -m forexpro_ri.cli jobs status --queue local_data/jobs.sqlite
+python -m forexpro_ri.cli jobs verify --queue local_data/jobs.sqlite
+python -m forexpro_ri.cli jobs health --queue local_data/jobs.sqlite \
+  --db local_data/research.sqlite --allow-unsigned-synthetic
+```
+
+Signed evidence mode is the default for actual imports: replace `--unsigned-synthetic` with an operator-provisioned `--trust-store` and provide approved signed bundles. FRI **still cannot establish scientific export authorization**. Jobs verify input fingerprints, handle bounded retries and lost worker leases, expose error codes and verify generated reports. Reports and job metadata (including absolute paths) are **private runtime data**. Queue is at-least-once; report publication is not atomic with SQLite evidence intake. For failure recovery, use `jobs requeue --queue ... --job-id ...` after an operator review.
+
+Full threat model, procedures and limitations: [Operations v2.0](docs/OPERATIONS_V2.md).
+
 ## Start locally (Python 3.12+)
 
 ```bash
@@ -25,7 +48,7 @@ The example is **synthetic test evidence**, not a ForexPro production outcome. T
 - Does **not** run experimental TRAIN, validation, optimization, holdout or live/demo execution.
 - Does **not** create scientific approval or promotional authority.
 - Does **not** duplicate MLflow, TrialLedger or ForexPro verification engines.
-- Does **not** use an LLM through v0.9: classification is deterministic and based only on already recorded verdicts.
+- Does **not** use an LLM through v2.0: classification is deterministic and based only on already recorded verdicts.
 - No GitHub token required, no remote API; v0.3 uses the audited `cryptography` library for Ed25519 verification.
 
 **Important:** v0.1 only checks internal bundle integrity and declared scope. It does not authenticate that ForexPro's scientific owner approved the export. A separately reviewed and signed ForexPro exporter is needed before treating external bundles as trusted evidence.
