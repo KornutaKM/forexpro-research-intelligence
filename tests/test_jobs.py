@@ -298,6 +298,23 @@ class JobsTests(unittest.TestCase):
             work_once(self.queue, now=100)
         self.assertEqual(health(self.queue)['operational_status'], 'ATTENTION_REQUIRED')
 
+    def test_late_ack_without_reclaim_rejected(self):
+        self.put()
+        old = claim(self.queue, now=100, lease_seconds=30)
+        with self.assertRaisesRegex(EvidenceError, 'stale worker'):
+            _finish(self.queue, old, success=False, error='INVALID_EVIDENCE', now=131)
+        self.assertEqual(verify(self.queue)['event_count'], 2)
+        new = claim(self.queue, now=131, lease_seconds=30)
+        self.assertNotEqual(new['lease_token'], old['lease_token'])
+
+    def test_success_ack_error_not_reclassified_as_failure(self):
+        self.put()
+        with patch('forexpro_ri.jobs.run_pipeline', return_value={}), \
+             patch('forexpro_ri.jobs._finish', side_effect=EvidenceError('expired')) as finish:
+            with self.assertRaises(EvidenceError):
+                work_once(self.queue, now=100)
+            self.assertEqual(finish.call_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
