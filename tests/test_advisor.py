@@ -131,6 +131,43 @@ class AdvisorTests(unittest.TestCase):
         self.assertFalse(target.is_symlink())
         self.assertEqual(main(['advisor','--db',str(self.db)]), 2)
 
+    def test_current_research_program_interface_normalized_without_false_citations(self):
+        self.populate()
+        from forexpro_ri import advisor as advisor_module
+        sample = {
+            'report_sha256':'f'*64, 'memory_snapshot_sha256':'a'*64,
+            'intake_policy':'SYNTHETIC_DEMONSTRATION',
+            'intake_status_counts':{'UNSIGNED_SYNTHETIC':2}, 'experiment_count':2,
+            'ranked_review_topics':[{ 'procedure':'MONTE_CARLO',
+                'attention_class':'REPEATED_EVIDENCE_GAP',
+                'recorded_counts':{'FAIL':0,'PASS':0,'NOT_EVALUABLE':0,'UNOBSERVED':2},
+                'operator_declared_expected':True,
+                'negative_evidence':{'FAIL':[],'NOT_EVALUABLE':[]},
+                'future_research_question':'For a NEW preregistered experiment, investigate evidence coverage.',
+            }],
+        }
+        with patch.object(advisor_module._program_module,'build_program', return_value=sample, create=True):
+            result = build_advisor(self.db, allow_unsigned_synthetic=True)
+        self.assertEqual(result['proposals'][0]['kind'],'EVIDENCE_GAP')
+        self.assertEqual(result['proposals'][0]['recorded_experiment_count'],2)
+        self.assertEqual(result['proposals'][0]['evidence_sample'],[])
+        self.assertEqual(result['research_program_sha256'],'f'*64)
+        self.assertFalse(result['signed_only_gate_passed'])
+
+    def test_current_program_signed_status_is_historical_only(self):
+        self.populate()
+        from forexpro_ri import advisor as advisor_module
+        sample = {
+            'report_sha256':'b'*64,'memory_snapshot_sha256':'c'*64,
+            'intake_policy':'SIGNED_AT_IMPORT_ONLY','intake_status_counts':{'SIGNATURE_VERIFIED':2},
+            'experiment_count':2,'ranked_review_topics':[],
+        }
+        with patch.object(advisor_module._program_module,'build_program',return_value=sample,create=True):
+            result = build_advisor(self.db, allow_unsigned_synthetic=True)
+        self.assertTrue(result['signed_only_gate_passed'])
+        self.assertEqual(result['proposal_count'],0)
+        self.assertFalse(any(result['authority'].values()))
+
     def test_model_request_contains_only_bounded_safe_codes(self):
         r = self.pack()
         b = _request_payload(r, 'qwen2.5:7b')
