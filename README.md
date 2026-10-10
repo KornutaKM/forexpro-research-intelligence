@@ -1,5 +1,21 @@
 # ForexPro Research Intelligence (FRI)
 
+## Proposed v2.8 — synthetic recipient trust history (draft)
+
+The optional `synthetic-receiver-trust` command composes v2.7's restrictive
+signed synthetic Core policy preview with a **separate synthetic operator-signed
+public-key trust history**: bounded sequential checkpoints, pinned test head and
+genesis, key rotation, cumulative revocation, exact trust-store SHA-256 and
+independently supplied test rollback floor. Every real scientific, signer custody,
+source-authentication, export/import, HOLDOUT and broker authority remains
+**false**. No Research Memory writes or private Core access are added.
+
+This design is **NOT approved for real data or production deployment**. Test
+keys and latest-head pins are controlled by the caller; an attacker controlling
+them all can forge a consistent result. See
+[synthetic recipient trust continuity](docs/SYNTHETIC_RECIPIENT_TRUST_CONTINUITY_V28.md)
+and [private Core owner decision #518](https://github.com/KornutaKM/1111222/issues/518).
+
 ## Proposed v2.7 — synthetic Core v1 recipient-policy preview (no real export)
 
 An optional **offline, read-only, synthetic-only** policy preflight checks signed
