@@ -1,5 +1,22 @@
 # ForexPro Research Intelligence (FRI)
 
+## Proposed v2.9 — hermetic signed-recipient qualification (synthetic only)
+
+The new `integration qualification` command exercises **one disposable
+end-to-end test**: signed two-bundle Core v1 candidate policy, synthetic
+operator-signed trust rotation/revocation, signed Research Memory import,
+Advisor quality, backup/restore and adversarial tamper/rollback rejections.
+
+```sh
+python -m forexpro_ri.cli integration qualification
+```
+
+No files, credentials or dataset inputs are accepted: all signers and bundles
+are **ephemeral synthetic fixtures**, deleted afterward. Passing checks do
+not authorize real records, change `main` export policy, establish Core
+scientific closure, or grant HOLDOUT/broker/trading privileges.
+See [v2.9 qualification notes](docs/FRI_HERMETIC_SYNTHETIC_QUALIFICATION_V29.md).
+
 ## Proposed v2.8 — synthetic recipient trust history (draft)
 
 The optional `synthetic-receiver-trust` command composes v2.7's restrictive
