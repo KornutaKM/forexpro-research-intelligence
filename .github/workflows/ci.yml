@@ -190,3 +190,30 @@ jobs:
             --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
           python -m forexpro_ri.cli jobs work --queue "$tmpdir/signed-jobs.sqlite"
           python -m forexpro_ri.cli memory program --db "$tmpdir/signed-memory.sqlite"
+
+      - name: Synthetic-only Research Advisor v2.4 (no model network)
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic \
+            --db "$tmpdir/research.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli memory ingest examples/closed_synthetic_peer \
+            --db "$tmpdir/research.sqlite" --unsigned-synthetic
+          python -m forexpro_ri.cli advisor --db "$tmpdir/research.sqlite" \
+            --unsigned-synthetic --expected-procedure MONTE_CARLO \
+            --format json --out "$tmpdir/advisor.json"
+          python -m forexpro_ri.cli advisor --db "$tmpdir/research.sqlite" \
+            --unsigned-synthetic --expected-procedure MONTE_CARLO --format markdown
+          if python -m forexpro_ri.cli advisor --db "$tmpdir/research.sqlite"; then
+            echo 'ERROR: unsigned data passed signed-only advisor gate' >&2
+            exit 1
+          fi
+          python -m forexpro_ri.cli bridge fixture \
+            --bundle "$tmpdir/signed" --trust-store "$tmpdir/trust.json"
+          python -m forexpro_ri.cli memory ingest "$tmpdir/signed" \
+            --db "$tmpdir/signed-memory.sqlite" --trust-store "$tmpdir/trust.json"
+          python -m forexpro_ri.cli advisor --db "$tmpdir/signed-memory.sqlite" \
+            --format json --out "$tmpdir/signed-advisor.json"
+
