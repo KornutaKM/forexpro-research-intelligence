@@ -2,6 +2,25 @@
 
 Public-source, offline, read-only **advisory** companion for a separately operated research platform.
 
+## v2.4 — Evidence-constrained Research Advisor
+
+FRI v2.4 adds a **deterministic, evidence-linked research advisor** and optional **explicitly opted-in local Ollama prose**. The default mode is offline and model-free. It derives prospective questions for **NEW preregistered experiments** from validated Research Memory metadata without reading original observation prose or modifying scientific decisions.
+
+```bash
+python -m forexpro_ri.cli advisor --db local_data/research.sqlite --format markdown
+# ONLY with synthetic fixture memory:
+python -m forexpro_ri.cli advisor --db local_data/demo.sqlite \
+  --unsigned-synthetic --expected-procedure MONTE_CARLO --format json
+# Optional: operator-managed model listening ONLY at 127.0.0.1:11434
+python -m forexpro_ri.cli advisor --db local_data/demo.sqlite \
+  --unsigned-synthetic --expected-procedure MONTE_CARLO \
+  --local-model qwen2.5:7b --format markdown
+```
+
+Model output is labelled **unverified** and restricted to citing existing advisory item IDs. No external model API is used, no model is contacted in CI, and the read-only Control Center displays only deterministic questions. Signed-only intake remains the default; signature history is *not* scientific authorization or proof of current export permission.
+
+See [Advisor v2.4](docs/RESEARCH_ADVISOR_V24.md).
+
 **Security model:** this repository contains only generic code and explicitly synthetic fixtures. Never commit private research results, dataset files, strategy parameters, API tokens, broker data, or internal export bundles.
 
 **Initial v0.1:** imports explicit closed-experiment summary bundles, checks SHA-256 integrity and strict authority boundaries, classifies recorded outcomes without reinterpreting them, and proposes future research *questions* without changing scientific state.

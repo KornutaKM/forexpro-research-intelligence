@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from unittest.mock import patch
 
 from forexpro_ri.control_center import create_server, overview, dossier, program, audit
 from forexpro_ri.contracts import EvidenceError
@@ -75,7 +76,7 @@ class ControlCenterTests(unittest.TestCase):
             self.assertNotIn('Access-Control-Allow-Origin', headers)
 
     def test_denies_api_without_token(self):
-        for endpoint in ('/api/overview', '/api/program', '/api/audit', '/api/dossier?id=SYNTHETIC-001'):
+        for endpoint in ('/api/overview', '/api/program', '/api/advisor', '/api/audit', '/api/dossier?id=SYNTHETIC-001'):
             status, _, _ = self.request(endpoint)
             self.assertEqual(status, 401, endpoint)
 
@@ -158,6 +159,26 @@ class ControlCenterTests(unittest.TestCase):
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.assertEqual(self.json('/api/program')[0], 503)
+
+    def test_advisor_http_is_deterministic_and_never_uses_model(self):
+        self.populate(two=True, queue=False)
+        with patch('forexpro_ri.local_model.enrich_with_local_model') as model:
+            status, report = self.json('/api/advisor')
+        self.assertEqual(status, 200)
+        self.assertEqual(report['model_inference'], 'NOT_AVAILABLE_OVER_HTTP')
+        self.assertFalse(any(report['authority'].values()))
+        self.assertFalse(report['signed_only_gate_passed'])
+        self.assertNotIn('net PnL', json.dumps(report))
+        model.assert_not_called()
+
+    def test_advisor_signed_gate_and_mutation_rejected(self):
+        self.populate(queue=False)
+        self.server.shutdown(); self.thread.join(timeout=5); self.server.server_close()
+        self.server = create_server(self.q,self.m,token=TOKEN,port=0,synthetic=False)
+        self.thread = threading.Thread(target=self.server.serve_forever,daemon=True)
+        self.thread.start()
+        self.assertEqual(self.json('/api/advisor')[0],503)
+        self.assertEqual(self.request('/api/advisor',token=TOKEN,method='POST')[0],405)
 
     def test_full_integrity_audit(self):
         self.populate()

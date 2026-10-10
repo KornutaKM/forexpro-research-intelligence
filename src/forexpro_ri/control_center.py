@@ -146,6 +146,26 @@ def program(memory_db: Path, *, synthetic: bool) -> dict:
     }
 
 
+
+def advisor(memory_db: Path, *, synthetic: bool) -> dict:
+    """Return curated deterministic advisory metadata; NEVER invoke a model over HTTP."""
+    from .advisor import build_advisor
+    report = build_advisor(memory_db, allow_unsigned_synthetic=synthetic)
+    return {
+        'report_kind': 'NON_AUTHORITATIVE_ADVISOR_VIEW',
+        'memory_snapshot_sha256': report['memory_snapshot_sha256'],
+        'research_program_sha256': report['research_program_sha256'],
+        'signed_only_gate_passed': report['signed_only_gate_passed'],
+        'proposal_count': report['proposal_count'],
+        'proposals': [{k: row[k] for k in ('item_id','kind','procedure',
+                                           'recorded_experiment_count',
+                                           'question_for_new_experiment')}
+                      for row in report['proposals']],
+        'model_inference': 'NOT_AVAILABLE_OVER_HTTP',
+        'authority': report['authority'],
+    }
+
+
 def audit(queue_db: Path, memory_db: Path) -> dict:
     # Explicit on-demand full verification. Raw results may contain paths,
     # so expose only whitelisted status/count data.
@@ -217,7 +237,7 @@ def create_server(queue_db: str | Path, memory_db: str | Path, *, token: str,
                 asset = files('forexpro_ri').joinpath(file).read_bytes()
                 self._send(HTTPStatus.OK, asset, mime)
                 return
-            if parsed.path not in {'/api/overview', '/api/dossier', '/api/program', '/api/audit'}:
+            if parsed.path not in {'/api/overview', '/api/dossier', '/api/program', '/api/advisor', '/api/audit'}:
                 self._json(HTTPStatus.NOT_FOUND, {'error': 'NOT_FOUND'})
                 return
             auth_header = self.headers.get('Authorization', '')
@@ -236,6 +256,8 @@ def create_server(queue_db: str | Path, memory_db: str | Path, *, token: str,
                     value = overview(queue_db, memory_db)
                 elif parsed.path == '/api/program':
                     value = program(memory_db, synthetic=synthetic)
+                elif parsed.path == '/api/advisor':
+                    value = advisor(memory_db, synthetic=synthetic)
                 else:
                     value = audit(queue_db, memory_db)
                 self._json(HTTPStatus.OK, value)

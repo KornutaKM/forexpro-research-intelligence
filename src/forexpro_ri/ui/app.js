@@ -80,16 +80,33 @@
       for(const x of d.worklist){const card=node('article','program-card');card.append(chip(x.kind),node('h4','',x.procedure+' · '+x.affected_experiment_count+' recorded studies'),node('p','',x.prospective_question));target.append(card);}
     }catch(e){text(target,e.message);}
   }
+  async function loadAdvisor(){
+    const target=clear('advisor-content');target.append(node('p','empty','Building advisory questions from verified metadata…'));
+    try{const d=await get('/api/advisor');target.replaceChildren();
+      target.append(node('div','note', d.signed_only_gate_passed ?
+        'Historical signed-intake gate passed; scientific approval remains external.' :
+        'Synthetic-only testing; unsigned records have NO trusted-source status.'));
+      kv(target,'Evidence-linked questions',d.proposal_count);
+      kv(target,'Model inference','Disabled over HTTP; explicit local CLI opt-in only');
+      if(!d.proposals.length)target.append(node('p','empty','No research questions match the current criteria.'));
+      for(const x of d.proposals){const card=node('article','program-card');
+        card.append(chip(x.kind),node('h4','',x.procedure+' · '+x.recorded_experiment_count+' stored studies'),
+                    node('p','',x.question_for_new_experiment),node('div','minor','Evidence item: '+x.item_id));
+        target.append(card);
+      }
+    }catch(e){text(target,e.message);}
+  }
   async function loadAudit(){
     const el=clear('audit-content');el.append(node('p','empty','Checking local integrity…'));
     try{const data=await get('/api/audit');el.replaceChildren();kv(el,'Queue',data.queue.status);kv(el,'Research Memory',data.memory.status);kv(el,'Verified experiment count',data.memory.experiment_count);el.append(node('div','note','Local integrity is not cryptographic authentication or scientific approval.'));}catch(e){text(el,e.message);}
   }
-  const titles={overview:'Overview',queue:'Job queue',research:'Research memory',program:'Research program',audit:'Integrity audit'};
+  const titles={overview:'Overview',queue:'Job queue',research:'Research memory',program:'Research program',advisor:'Research advisor',audit:'Integrity audit'};
   document.querySelectorAll('[data-view]').forEach((b)=>b.addEventListener('click',()=>{
     for(const n of document.querySelectorAll('[data-view]')) n.classList.toggle('active',n===b);
     for(const v of document.querySelectorAll('.view'))v.classList.toggle('active',v.id===b.dataset.view);
     text($('heading'),titles[b.dataset.view]);
     if (b.dataset.view==='program' && token) loadProgram();
+    if (b.dataset.view==='advisor' && token) loadAdvisor();
   }));
   $('connect').addEventListener('click',()=>{
     const supplied=window.prompt('Paste the one-time Control Center token from the terminal:');
