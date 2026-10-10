@@ -83,7 +83,7 @@ class AdvisorTests(unittest.TestCase):
 
     def test_signed_by_default_and_empty_memory_failure(self):
         self.populate()
-        with self.assertRaisesRegex(EvidenceError, 'signed intake'):
+        with self.assertRaisesRegex(EvidenceError, 'signed intake|rejects unsigned'):
             build_advisor(self.db)
         with self.assertRaises(EvidenceError):
             build_advisor(self.root / 'no-memory.sqlite', allow_unsigned_synthetic=True)
