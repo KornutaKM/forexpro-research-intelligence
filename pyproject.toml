@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forexpro-research-intelligence"
-version = "2.2.0"
+version = "2.3.0"
 description = "Read-only evidence-based research intelligence companion for ForexPro"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,3 +16,6 @@ forexpro-ri = "forexpro_ri.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+forexpro_ri = ["ui/*.html", "ui/*.css", "ui/*.js"]

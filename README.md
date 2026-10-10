@@ -281,3 +281,17 @@ python -m forexpro_ri.cli recovery drill --db local_data/recovered.sqlite
 See [Recovery v1](docs/RECOVERY_V1.md) for threat model, WAL handling,
 private-storage rules and non-overwrite semantics. All examples in public CI
 use synthetic data. No integration with unfinished ForexPro Core is required.
+
+
+## v2.3 — Research Control Center (local web UI)
+
+FRI provides a **loopback-only, read-only** browser interface for queue health, research history, evidence-linked dossier views, Research Program, and operator-requested local integrity audit. It does not submit jobs, import evidence, touch ForexPro Core or execute trading/scientific workflows.
+
+```bash
+python -m pip install -e .
+python -m forexpro_ri.cli control serve --queue local_data/jobs.sqlite --db local_data/research.sqlite --port 8765
+```
+
+Open the printed URL and enter the ephemeral session token shown in the terminal. Only `127.0.0.1` is bound; never publicly expose this service. Use `--allow-unsigned-synthetic` only with synthetic fixtures; production research requires signed-only evaluation. If either SQLite database is missing, the interface reports it as unavailable and does not create it.
+
+See [Control Center v2.3](docs/CONTROL_CENTER_V23.md) for endpoint allowlists, authentication, privacy and operational boundaries.
