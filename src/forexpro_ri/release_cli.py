@@ -23,6 +23,7 @@ def run(argv: list[str]) -> int:
         check.add_argument("--bundle", type=Path, required=True)
         check.add_argument("--trust-store", type=Path, required=True)
         sub.add_parser("rehearsal")
+        sub.add_parser("qualification")
     args = parser.parse_args(argv[1:])
     try:
         if group == "quality":
@@ -31,6 +32,9 @@ def run(argv: list[str]) -> int:
         elif args.command == "check":
             from .integration_readiness import check_bundle
             result = check_bundle(args.bundle, args.trust_store)
+        elif args.command == "qualification":
+            from .synthetic_qualification import run_synthetic_recipient_qualification
+            result = run_synthetic_recipient_qualification()
         else:
             from .integration_readiness import rehearsal
             result = rehearsal()

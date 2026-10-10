@@ -1,0 +1,31 @@
+name: FRI v2.9 Hermetic Synthetic Qualification
+on:
+  pull_request:
+    paths:
+      - 'src/forexpro_ri/synthetic_qualification.py'
+      - 'src/forexpro_ri/release_cli.py'
+      - 'tests/test_synthetic_qualification.py'
+      - 'docs/FRI_HERMETIC_SYNTHETIC_QUALIFICATION_V29.md'
+      - '.github/workflows/fri-hermetic-qualification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-recipient-end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install public FRI requirements
+        run: python -m pip install -e .
+      - name: Run hermetic complete recipient and negative tests
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m unittest discover -s tests -p test_synthetic_qualification.py -v
+          python -m forexpro_ri.cli integration qualification
