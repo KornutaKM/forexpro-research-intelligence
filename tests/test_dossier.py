@@ -70,7 +70,7 @@ class ResearchDossierTests(unittest.TestCase):
                              expected_procedures=expected, min_support=min_support)
 
     def test_project_version(self):
-        self.assertEqual(__version__, '2.4.0')
+        self.assertEqual(__version__, '2.6.0')
 
     def test_focus_verdicts_evidence_and_unobserved_are_separate(self):
         self.populate()

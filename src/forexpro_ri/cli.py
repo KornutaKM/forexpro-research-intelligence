@@ -17,6 +17,9 @@ def main(argv: list[str] | None = None) -> int:
     if command_line and command_line[0] == 'advisor':
         from .advisor_cli import run
         return run(command_line[1:])
+    if command_line and command_line[0] in ('quality', 'integration'):
+        from .release_cli import run
+        return run(command_line)
     if command_line and command_line[0] == 'control':
         from .control_center import run
         return run(command_line[1:])
