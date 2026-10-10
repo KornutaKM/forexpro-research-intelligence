@@ -1,5 +1,29 @@
 # ForexPro Research Intelligence (FRI)
 
+## Proposed v2.7 — synthetic Core v1 recipient-policy preview (no real export)
+
+An optional **offline, read-only, synthetic-only** policy preflight checks signed
+three-file FRI bundles against the conservative Core v1 design proposal:
+`CLOSED_UNSUCCESSFUL`, no `not_evaluable`, all ten procedure kinds, at least
+one recorded FAIL, and only the exact **unapproved** candidate phrase
+dictionary from Core draft #526. It does **not** import anything into Research
+Memory, verify Core scientific authority, establish source custody or
+authorize declassification.
+
+```bash
+# Generate only ephemeral synthetic signed inputs yourself (see tests).
+python -m forexpro_ri.cli core-policy \
+  --bundle /private/local/synthetic-fixture \
+  --trust-store /private/local/synthetic-trusted-public-keys.json
+```
+
+Only bundles marked `SYNTHETIC-` and test signers marked `SYNTHETIC_`
+can pass the preview. This label is NOT independent proof of scientific
+origin. Actual real source exports remain blocked pending separate source-owner
+and privacy/security decisions in [Core Issue #518](https://github.com/KornutaKM/1111222/issues/518).
+
+See [synthetic Core policy preview](docs/CORE_V1_RECIPIENT_POLICY_PREVIEW.md).
+
 Public-source, offline, read-only **advisory** companion for a separately operated research platform.
 
 ## v2.4 — Evidence-constrained Research Advisor

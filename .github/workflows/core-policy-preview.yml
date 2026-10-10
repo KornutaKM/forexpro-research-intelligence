@@ -1,0 +1,33 @@
+name: Synthetic Core v1 Recipient Policy Preview
+
+on:
+  pull_request:
+    paths:
+      - 'src/forexpro_ri/core_policy_preview.py'
+      - 'src/forexpro_ri/core_policy_cli.py'
+      - 'src/forexpro_ri/cli.py'
+      - 'tests/test_core_policy_preview.py'
+      - 'docs/CORE_V1_RECIPIENT_POLICY_PREVIEW.md'
+      - '.github/workflows/core-policy-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recipient-synthetic-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install FRI
+        run: python -m pip install -e .
+      - name: Run signed synthetic recipient policy and negative tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -p test_core_policy_preview.py -v
