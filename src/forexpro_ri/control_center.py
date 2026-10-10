@@ -21,7 +21,7 @@ from .contracts import EvidenceError, _ID
 from .dossier import build_dossier
 from .jobs import status as queue_status, verify as queue_verify
 from .memory import history as memory_history, verify as memory_verify
-from .research_program import build_research_program
+from . import research_program as research_program_module
 
 _MAX_BODY = 2 * 1024 * 1024
 _MAX_QUERY = 1024
@@ -102,7 +102,37 @@ def dossier(memory_db: Path, experiment_id: str) -> dict:
 
 
 def program(memory_db: Path, *, synthetic: bool) -> dict:
-    raw = build_research_program(memory_db, allow_unsigned_synthetic=synthetic)
+    """Normalize v2.2 Research Program while maintaining older fixture support."""
+    if hasattr(research_program_module, 'build_program'):
+        raw = research_program_module.build_program(memory_db, require_signed=not synthetic)
+        rows = raw['ranked_review_topics']
+        worklist = [
+            {
+                'kind': row['attention_class'],
+                'procedure': row['procedure'],
+                'affected_experiment_count': row['recorded_counts']['FAIL']
+                + row['recorded_counts']['NOT_EVALUABLE'],
+                'prospective_question': row['future_research_question'] or
+                'No negative observations; no new hypothesis is implied.',
+                'basis': 'RECORDED_CLOSED_EXPERIMENT_OUTCOMES',
+            }
+            for row in rows if row['attention_class'] != 'NO_NEGATIVE_OBSERVATION'
+        ][:20]
+        count = raw['experiment_count']
+        return {
+            'report_kind': 'NON_AUTHORITATIVE_RESEARCH_PROGRAM_VIEW',
+            'signed_only_gate_passed': (
+                raw['intake_status_counts'].get('SIGNATURE_VERIFIED', 0) == count
+                and raw['intake_policy'] == 'SIGNED_AT_IMPORT_ONLY'),
+            'observed_experiment_count': count,
+            'total_worklist_items': len([r for r in rows if r['attention_class'] != 'NO_NEGATIVE_OBSERVATION']),
+            'worklist': worklist,
+            'snapshot_sha256': raw['memory_snapshot_sha256'],
+            'authority': {'scientific': False, 'holdout': False, 'broker': False},
+        }
+    # For the earlier prototype-only API, if explicitly installed by an operator.
+    raw = research_program_module.build_research_program(
+        memory_db, allow_unsigned_synthetic=synthetic)
     return {
         'report_kind': 'NON_AUTHORITATIVE_RESEARCH_PROGRAM_VIEW',
         'signed_only_gate_passed': raw['signed_only_gate_passed'],
