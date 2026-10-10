@@ -217,3 +217,17 @@ jobs:
           python -m forexpro_ri.cli advisor --db "$tmpdir/signed-memory.sqlite" \
             --format json --out "$tmpdir/signed-advisor.json"
 
+      - name: v2.6 signed synthetic contract rehearsal
+        env:
+          PYTHONPATH: src
+        run: python -m forexpro_ri.cli integration rehearsal
+
+      - name: v2.5 quality benchmark on signed synthetic memory
+        env:
+          PYTHONPATH: src
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli bridge fixture --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
+          python -m forexpro_ri.cli memory ingest "$tmpdir/signed" --db "$tmpdir/memory.sqlite" --trust-store "$tmpdir/keys.json"
+          python -m forexpro_ri.cli quality benchmark --db "$tmpdir/memory.sqlite"

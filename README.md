@@ -314,3 +314,25 @@ python -m forexpro_ri.cli control serve --queue local_data/jobs.sqlite --db loca
 Open the printed URL and enter the ephemeral session token shown in the terminal. Only `127.0.0.1` is bound; never publicly expose this service. Use `--allow-unsigned-synthetic` only with synthetic fixtures; production research requires signed-only evaluation. If either SQLite database is missing, the interface reports it as unavailable and does not create it.
 
 See [Control Center v2.3](docs/CONTROL_CENTER_V23.md) for endpoint allowlists, authentication, privacy and operational boundaries.
+
+## v2.5 + v2.6 — quality gate and future-export compatibility
+
+The independent Advisor quality gate measures deterministic structural
+regression checks, and the future integration preflight verifies the existing
+signed-export contract without changing ForexPro Core:
+
+```bash
+# Signed-only quality by default; no live LLM or internet access.
+python -m forexpro_ri.cli quality benchmark --db local_data/research.sqlite
+# Contract check using a trust store provisioned independently from the bundle.
+python -m forexpro_ri.cli integration check \
+  --bundle /private/approved-export --trust-store /private/trusted-keys.json
+# Fully synthetic local rehearsal (ephemeral in-memory signing key):
+python -m forexpro_ri.cli integration rehearsal
+```
+
+The quality score measures **only fixed regression tests**, never semantic AI
+truthfulness, real-world trading value, or export permission. `integration
+check` returns `CONTRACT_CONFORMANT_NOT_EXPORT_APPROVED`, even when the
+signature is valid. No actual ForexPro exporter or real data integration has
+been implemented. See [Quality and integration v2.6](docs/QUALITY_AND_INTEGRATION_V26.md).
