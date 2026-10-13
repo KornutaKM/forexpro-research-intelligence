@@ -66,6 +66,18 @@ def run(argv: list[str]) -> int:
     agreement.add_argument("--left", type=Path, required=True)
     agreement.add_argument("--right", type=Path, required=True)
     agreement.add_argument("--out", type=Path, required=True)
+    rubric_template = commands.add_parser("rubric-template", help="No-opinion human Advisor quality worksheet")
+    rubric_template.add_argument("--dir", type=Path, required=True)
+    rubric_template.add_argument("--out", type=Path, required=True)
+    rubric_score = commands.add_parser("rubric-score", help="Validate curator labels against exactly one pack")
+    rubric_score.add_argument("--dir", type=Path, required=True)
+    rubric_score.add_argument("--input", type=Path, required=True)
+    rubric_score.add_argument("--out", type=Path, required=True)
+    rubric_compare = commands.add_parser("rubric-compare", help="Compare two separately submitted rubric assessments")
+    rubric_compare.add_argument("--dir", type=Path, required=True)
+    rubric_compare.add_argument("--left", type=Path, required=True)
+    rubric_compare.add_argument("--right", type=Path, required=True)
+    rubric_compare.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "compare":
@@ -108,7 +120,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(read_private_json(source))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions"):
+        if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions", "rubric-template", "rubric-score", "rubric-compare"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -122,6 +134,34 @@ def run(argv: list[str]) -> int:
             verify_review_pack(data)
             if read_private_bytes(h, limit=_MAX_HTML_BYTES) != render_review_html(data).encode("utf-8"):
                 raise EvidenceError("pack HTML mismatch")
+            if args.command in ("rubric-template", "rubric-score", "rubric-compare"):
+                from .review_curator import curator_template, assess_curator_rubric, compare_curator_rubrics
+                referenced = []
+                if args.command == "rubric-template":
+                    response = curator_template(data)
+                elif args.command == "rubric-score":
+                    referenced = [args.input]
+                    response = assess_curator_rubric(data, read_private_json(args.input))
+                else:
+                    referenced = [args.left, args.right]
+                    response = compare_curator_rubrics(
+                        data, read_private_json(args.left), read_private_json(args.right)
+                    )
+                destination = args.out
+                if (destination.exists() or destination.is_symlink()
+                        or not destination.parent.is_dir() or destination.parent.is_symlink()
+                        or destination.resolve().is_relative_to(source.resolve())
+                        or any(destination.resolve() == p.resolve() for p in referenced)):
+                    raise EvidenceError("unsafe curator output path")
+                fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                             | getattr(os, "O_NOFOLLOW", 0), 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as output:
+                    output.write(json.dumps(response, sort_keys=True, ensure_ascii=False, indent=2) + "\n")
+                print(json.dumps({"status": "PRIVATE_CURATOR_DOCUMENT_CREATED",
+                                  "kind": args.command,
+                                  "source_pack_sha256": data["report_sha256"],
+                                  "scientific_authority": False}, sort_keys=True))
+                return 0
             if args.command in ("decision-template", "decisions"):
                 from .review_decisions import decision_template, assess_review_decisions
                 if args.command == "decision-template":
