@@ -30,7 +30,7 @@ def score_review_pack(pack: dict[str, Any], labels: dict[str, Any]) -> dict[str,
         raise EvidenceError("benchmark needs explicit curated synthetic labels")
     if pack["status"] == "NO_ELIGIBLE_DATA":
         raise EvidenceError("cannot score an empty review pack")
-    if pack["status"] not in ("SYNTHETIC_DEMONSTRATION", "HISTORICAL_SIGNED_INTAKES"):
+    if pack["status"] not in ("SYNTHETIC_DEMONSTRATION", "SYNTHETIC_SIGNED_DEMONSTRATION", "HISTORICAL_SIGNED_INTAKES"):
         raise EvidenceError("unknown review state")
     cases = pack.get("cases")
     topics = pack.get("review_topics")
