@@ -309,3 +309,85 @@ jobs:
             echo "FAIL: identical reviewer sidecars claimed independent review" >&2
             exit 1
           fi
+
+
+      - name: Issue 19 private curator rubric and counterbalanced study E2E
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli review demo --out "$tmpdir/pack"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review rubric-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/rubric-a.json"
+          python -m forexpro_ri.cli review rubric-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/rubric-b.json"
+          python -m forexpro_ri.cli review study-plan \
+            --dir "$tmpdir/pack" --tasks 20 --out "$tmpdir/study-plan.json"
+          python - "$tmpdir" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          for name in ("rubric-a.json", "rubric-b.json"):
+              p = root / name
+              x = json.loads(p.read_text(encoding="utf-8"))
+              for row in x["items"]:
+                  row.update({
+                      "grounding": "SUPPORTED_BY_RECORDED_EVIDENCE",
+                      "usefulness": "USEFUL_RESEARCH_QUESTION",
+                      "duplication": "NOT_IDENTIFIED_IN_REVIEWED_CORPUS",
+                      "scientific_language": "BOUNDED_ADVISORY_ONLY",
+                  })
+              if name == "rubric-b.json":
+                  x["items"][0]["grounding"] = "UNSUPPORTED_BY_RECORDED_EVIDENCE"
+              p.write_text(json.dumps(x, sort_keys=True), encoding="utf-8")
+          plan = json.loads((root / "study-plan.json").read_text(encoding="utf-8"))
+          data = {
+              "schema_version": 1, "source_class": "CURATED_SYNTHETIC_ONLY",
+              "tasks": [{
+                  "task_id": row["task_id"], "order": row["order"],
+                  "manual_seconds": 300, "fri_seconds": 60,
+                  "manual_correct": True, "fri_correct": True,
+                  "manual_citations_correct": True,
+                  "fri_citations_correct": True,
+                  "manual_independence_error": False,
+                  "fri_independence_error": False,
+              } for row in plan["assignments"]],
+          }
+          (root / "synthetic-times.json").write_text(
+              json.dumps(data, sort_keys=True), encoding="utf-8"
+          )
+          PY
+          python -m forexpro_ri.cli review rubric-score \
+            --dir "$tmpdir/pack" --input "$tmpdir/rubric-a.json" \
+            --out "$tmpdir/checked-a.json"
+          python -m forexpro_ri.cli review rubric-score \
+            --dir "$tmpdir/pack" --input "$tmpdir/rubric-b.json" \
+            --out "$tmpdir/checked-b.json"
+          python -m forexpro_ri.cli review rubric-compare \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-b.json" \
+            --out "$tmpdir/curator-differences.json"
+          python -m forexpro_ri.cli review study-reconcile \
+            --dir "$tmpdir/pack" --plan "$tmpdir/study-plan.json" \
+            --input "$tmpdir/synthetic-times.json" \
+            --out "$tmpdir/study-results.json"
+          if python -m forexpro_ri.cli review rubric-compare \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-a.json" \
+            --out "$tmpdir/false-two-reviewers.json"; then
+            echo "FAIL: identical curator files accepted as separate reviews" >&2
+            exit 1
+          fi
+          python - "$tmpdir/study-results.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert result["all_task_orders_match_assignment"] is True
+          assert result["real_world_100x_confirmed"] is False
+          assert result["scientific_authority"] is False
+          PY
