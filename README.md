@@ -19,6 +19,10 @@ Run the synthetic, locally signed end-to-end demo:
     python -m forexpro_ri.cli review audit --dir local_data/review-cohort
     python -m forexpro_ri.cli review triage --dir local_data/review-cohort
     python -m forexpro_ri.cli review repetition --dir local_data/review-cohort
+    # Synthetic question omission / false-positive benchmark
+    python -m forexpro_ri.cli review recall \
+      --dir local_data/review-cohort \
+      --labels examples/review_question_recall_gold.json
     # Human rubric (template fields are UNREVIEWED; fill them yourself):
     python -m forexpro_ri.cli review rubric-template \
       --dir local_data/review-cohort --out local_data/curator-input.json
@@ -26,6 +30,12 @@ Run the synthetic, locally signed end-to-end demo:
     python -m forexpro_ri.cli review rubric-score \
       --dir local_data/review-cohort \
       --input local_data/curator-input.json --out local_data/curator-reviewed.json
+    # Once human decisions and curator labels are reviewed separately:
+    python -m forexpro_ri.cli review reconcile-human \
+      --dir local_data/review-cohort \
+      --decisions local_data/review-decisions-checked.json \
+      --rubric local_data/curator-reviewed.json \
+      --out local_data/review-conflicts.json
     # Lock a reproducible balanced timing-study task order:
     python -m forexpro_ri.cli review study-plan \
       --dir local_data/review-cohort --tasks 20 \
@@ -58,7 +68,8 @@ See docs/RESEARCH_REVIEW_PACK.md, docs/CORE_INTEROPERABILITY_LANES.md and
 docs/REVIEW_QUALITY_BENCHMARK.md, plus
 docs/REVIEW_VERIFICATION_AND_PROGRESSION.md and
 docs/OPERATOR_TRIAGE_AND_PEER_REVIEW.md and
-docs/CURATOR_RUBRIC_AND_STUDY_PROTOCOL.md. The latest operator dashboard adds
+docs/CURATOR_RUBRIC_AND_STUDY_PROTOCOL.md and
+docs/ADVISOR_RECALL_AND_HUMAN_RECONCILIATION.md. The latest operator dashboard adds
 linked repeated-negative-pattern cautions and human disagreement summaries;
 their matches are not independent scientific replication. The 20-case cohort and time study are
 explicitly synthetic; no real operator acceleration is claimed. Private
