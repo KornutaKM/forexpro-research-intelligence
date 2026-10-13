@@ -65,3 +65,24 @@ product usefulness, preregister real (or approved independent synthetic)
 human-defined target questions without seeing Advisor output, use blind
 assessors and verify every actual error denominator. Real exports from Core
 remain BLOCKED pending the independent source owner decision in issue #19.
+
+
+## 4. Deliberate top-N truncation probe
+
+The cohort-demo command has an explicit Advisor cap for negative testing:
+
+    python -m forexpro_ri.cli review cohort-demo \
+      --out local_data/recall-top-two --max-items 2
+    python -m forexpro_ri.cli review recall \
+      --dir local_data/recall-top-two \
+      --labels examples/review_question_recall_gold.json
+
+The second command intentionally exits with status 2 (NEEDS_REVIEW)
+because only two of the six scenario-designed desirable procedure
+questions remain displayed; four are missing. The accepted full cohort
+defaults to max-items 12. This stress test demonstrates one concrete
+blind spot created by output truncation, not general Advisor sensitivity.
+
+Public CI runs both the full and capped synthetic command flows. An
+unexpected successful exit for the capped pack fails the workflow.
+No actual Core experiment or real-human annotation is used.
