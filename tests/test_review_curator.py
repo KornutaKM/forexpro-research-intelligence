@@ -120,7 +120,10 @@ class CuratorRubricTests(unittest.TestCase):
         form = self.filled()
         form["items"][0]["grounding"] = "CANNOT_DETERMINE"
         right = assess_curator_rubric(self.pack, form)
-        right["items"][0]["grounding"] = "SUPPORTED_BY_RECORDED_EVIDENCE"
+        target_id = form["items"][0]["item_id"]
+        next(x for x in right["items"] if x["item_id"] == target_id)[
+            "grounding"
+        ] = "SUPPORTED_BY_RECORDED_EVIDENCE"
         with self.assertRaises(EvidenceError):
             compare_curator_rubrics(self.pack, left, right)
 
