@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "source_class": "CURATED_SYNTHETIC_ONLY",
+  "label_provenance": "SCENARIO_DESIGNED_NOT_BLINDLY_VALIDATED",
+  "eligible_procedures": [
+    "COST_STRESS",
+    "DETERMINISTIC_RERUN",
+    "MONTE_CARLO",
+    "MULTIPLE_TESTING",
+    "OUT_OF_SAMPLE",
+    "PARAMETER_STABILITY",
+    "REGIME_STABILITY",
+    "RISK_LIMITS",
+    "SAMPLE_SUFFICIENCY",
+    "WALK_FORWARD"
+  ],
+  "targets": [
+    {
+      "procedure": "COST_STRESS",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "DETERMINISTIC_RERUN",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "MONTE_CARLO",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "MULTIPLE_TESTING",
+      "label": "SHOULD_NOT_REVIEW"
+    },
+    {
+      "procedure": "OUT_OF_SAMPLE",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "PARAMETER_STABILITY",
+      "label": "SHOULD_NOT_REVIEW"
+    },
+    {
+      "procedure": "REGIME_STABILITY",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "RISK_LIMITS",
+      "label": "SHOULD_NOT_REVIEW"
+    },
+    {
+      "procedure": "SAMPLE_SUFFICIENCY",
+      "label": "SHOULD_REVIEW"
+    },
+    {
+      "procedure": "WALK_FORWARD",
+      "label": "SHOULD_NOT_REVIEW"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "source_class": "CURATED_SYNTHETIC_ONLY",
+  "expected_cases": {
+    "SYNTHETIC-BRIDGE-001": {
+      "COST_STRESS": "FAIL",
+      "DETERMINISTIC_RERUN": "PASS",
+      "MONTE_CARLO": "UNOBSERVED",
+      "OUT_OF_SAMPLE": "FAIL",
+      "REGIME_STABILITY": "NOT_EVALUABLE"
+    }
+  },
+  "expected_review_procedures": [
+    "COST_STRESS",
+    "MONTE_CARLO",
+    "OUT_OF_SAMPLE",
+    "REGIME_STABILITY"
+  ]
+}

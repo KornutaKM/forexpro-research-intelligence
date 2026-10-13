@@ -1,5 +1,84 @@
 # ForexPro Research Intelligence (FRI)
 
+
+## In review: Issue #19 Research Review Pack (Draft PR)
+
+The proposed Research Review Pack combines existing signed Research Memory,
+Failure Intelligence, Dossier and Advisor into **one offline HTML + JSON report**
+without adding a second scientific database or Core exporter.
+
+Run the synthetic, locally signed end-to-end demo:
+
+    python -m forexpro_ri.cli review demo --out local_data/review-demo
+    python -m forexpro_ri.cli review verify --dir local_data/review-demo
+    python -m forexpro_ri.cli review benchmark --dir local_data/review-demo \
+      --labels examples/review_benchmark_labels.json
+    python -m forexpro_ri.cli review cohort-demo --out local_data/review-cohort
+    python -m forexpro_ri.cli review benchmark --dir local_data/review-cohort \
+      --labels examples/review_cohort_gold.json
+    python -m forexpro_ri.cli review audit --dir local_data/review-cohort
+    python -m forexpro_ri.cli review triage --dir local_data/review-cohort
+    python -m forexpro_ri.cli review repetition --dir local_data/review-cohort
+    # Synthetic question omission / false-positive benchmark
+    python -m forexpro_ri.cli review recall \
+      --dir local_data/review-cohort \
+      --labels examples/review_question_recall_gold.json
+    # Human rubric (template fields are UNREVIEWED; fill them yourself):
+    python -m forexpro_ri.cli review rubric-template \
+      --dir local_data/review-cohort --out local_data/curator-input.json
+    # After human labeling:
+    python -m forexpro_ri.cli review rubric-score \
+      --dir local_data/review-cohort \
+      --input local_data/curator-input.json --out local_data/curator-reviewed.json
+    # Once human decisions and curator labels are reviewed separately:
+    python -m forexpro_ri.cli review reconcile-human \
+      --dir local_data/review-cohort \
+      --decisions local_data/review-decisions-checked.json \
+      --rubric local_data/curator-reviewed.json \
+      --out local_data/review-conflicts.json
+    # Lock a reproducible balanced timing-study task order:
+    python -m forexpro_ri.cli review study-plan \
+      --dir local_data/review-cohort --tasks 20 \
+      --out local_data/private-study-plan.json
+    python -m forexpro_ri.cli review compare \
+      --before local_data/review-cohort --after local_data/review-cohort \
+      --out local_data/review-progress.json
+    python -m forexpro_ri.cli review study \
+      --input examples/review_time_study_synthetic.json
+    python -m forexpro_ri.cli review decision-template \
+      --dir local_data/review-cohort --out local_data/review-decisions.json
+    # Manually edit the separate decision JSON and then validate:
+    python -m forexpro_ri.cli review decisions \
+      --dir local_data/review-cohort --input local_data/review-decisions.json \
+      --out local_data/review-decisions-checked.json
+    # For two separately reviewed sidecars, compare their disagreement:
+    python -m forexpro_ri.cli review agreement \
+      --dir local_data/review-cohort \
+      --left local_data/reviewer-a-checked.json \
+      --right local_data/reviewer-b-checked.json \
+      --out local_data/reviewer-disagreements.json
+
+Open local_data/review-demo/index.html locally; keep any real reports private.
+The demo never accesses Core or uses real research. For existing, separately
+authorized closed Research Memory intakes, use review pack --db ... --out ....
+The pack is advisory only: a historical signed receipt is **not** proof of
+current export permission, scientific validation, HOLDOUT or broker authority.
+
+See docs/RESEARCH_REVIEW_PACK.md, docs/CORE_INTEROPERABILITY_LANES.md and
+docs/REVIEW_QUALITY_BENCHMARK.md, plus
+docs/REVIEW_VERIFICATION_AND_PROGRESSION.md and
+docs/OPERATOR_TRIAGE_AND_PEER_REVIEW.md and
+docs/CURATOR_RUBRIC_AND_STUDY_PROTOCOL.md and
+docs/ADVISOR_RECALL_AND_HUMAN_RECONCILIATION.md. The latest operator dashboard adds
+linked repeated-negative-pattern cautions and human disagreement summaries;
+their matches are not independent scientific replication. The 20-case cohort and time study are
+explicitly synthetic; no real operator acceleration is claimed. Private
+review decisions can only accept a research question for human discussion;
+they cannot register experiments or send commands to Core.
+The PREVIEW lane remains unimplemented and strictly excluded from scientific
+Research Memory. Real Core closed-experiment export remains blocked by the
+source-owner release and privacy decisions in Issue #19.
+
 Public-source, offline, read-only **advisory** companion for a separately operated research platform.
 
 ## v2.4 — Evidence-constrained Research Advisor

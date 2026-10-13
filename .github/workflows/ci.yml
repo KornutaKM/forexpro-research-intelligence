@@ -231,3 +231,202 @@ jobs:
           python -m forexpro_ri.cli bridge fixture --bundle "$tmpdir/signed" --trust-store "$tmpdir/keys.json"
           python -m forexpro_ri.cli memory ingest "$tmpdir/signed" --db "$tmpdir/memory.sqlite" --trust-store "$tmpdir/keys.json"
           python -m forexpro_ri.cli quality benchmark --db "$tmpdir/memory.sqlite"
+
+
+      - name: Issue 19 offline Research Review Pack full synthetic acceptance
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli review cohort-demo --out "$tmpdir/cohort"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/cohort"
+          python -m forexpro_ri.cli review audit --dir "$tmpdir/cohort"
+          python -m forexpro_ri.cli review benchmark \
+            --dir "$tmpdir/cohort" --labels examples/review_cohort_gold.json
+          python -m forexpro_ri.cli review recall \
+            --dir "$tmpdir/cohort" --labels examples/review_question_recall_gold.json
+          python -m forexpro_ri.cli review cohort-demo \
+            --out "$tmpdir/top-two" --max-items 2
+          if python -m forexpro_ri.cli review recall \
+            --dir "$tmpdir/top-two" --labels examples/review_question_recall_gold.json; then
+            echo "FAIL: truncated Advisor top-2 was accepted as complete recall" >&2
+            exit 1
+          fi
+          python -m forexpro_ri.cli review study \
+            --input examples/review_time_study_synthetic.json
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/cohort" --out "$tmpdir/decision-input.json"
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/cohort" --input "$tmpdir/decision-input.json" \
+            --out "$tmpdir/decisions.json"
+          python -m forexpro_ri.cli review compare \
+            --before "$tmpdir/cohort" --after "$tmpdir/cohort" \
+            --out "$tmpdir/unchanged.json"
+          python -m forexpro_ri.cli review demo --out "$tmpdir/one"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/one"
+          if python -m forexpro_ri.cli review compare \
+            --before "$tmpdir/cohort" --after "$tmpdir/one" \
+            --out "$tmpdir/invalid.json"; then
+            echo "FAIL: append-only comparison accepted missing cases" >&2
+            exit 1
+          fi
+
+
+      - name: Issue 19 evidence-first triage and two-reviewer negative rehearsal
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli review cohort-demo --out "$tmpdir/pack"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review triage --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review repetition --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/reviewer-a.json"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/reviewer-b.json"
+          python - "$tmpdir/reviewer-b.json" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          data = json.loads(path.read_text(encoding="utf-8"))
+          data["decisions"][0].update({
+              "choice": "ACCEPT_FOR_DISCUSSION",
+              "reason_code": "NEW_EXPERIMENT_QUESTION",
+          })
+          path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+          PY
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/reviewer-a.json" \
+            --out "$tmpdir/checked-a.json"
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/reviewer-b.json" \
+            --out "$tmpdir/checked-b.json"
+          python -m forexpro_ri.cli review agreement \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-b.json" \
+            --out "$tmpdir/disagreement.json"
+          if python -m forexpro_ri.cli review agreement \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-a.json" \
+            --out "$tmpdir/false-independence.json"; then
+            echo "FAIL: identical reviewer sidecars claimed independent review" >&2
+            exit 1
+          fi
+
+
+      - name: Issue 19 private curator rubric and counterbalanced study E2E
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli review demo --out "$tmpdir/pack"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review rubric-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/rubric-a.json"
+          python -m forexpro_ri.cli review rubric-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/rubric-b.json"
+          python -m forexpro_ri.cli review study-plan \
+            --dir "$tmpdir/pack" --tasks 20 --out "$tmpdir/study-plan.json"
+          python - "$tmpdir" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          for name in ("rubric-a.json", "rubric-b.json"):
+              p = root / name
+              x = json.loads(p.read_text(encoding="utf-8"))
+              for row in x["items"]:
+                  row.update({
+                      "grounding": "SUPPORTED_BY_RECORDED_EVIDENCE",
+                      "usefulness": "USEFUL_RESEARCH_QUESTION",
+                      "duplication": "NOT_IDENTIFIED_IN_REVIEWED_CORPUS",
+                      "scientific_language": "BOUNDED_ADVISORY_ONLY",
+                  })
+              if name == "rubric-b.json":
+                  x["items"][0]["grounding"] = "UNSUPPORTED_BY_RECORDED_EVIDENCE"
+              p.write_text(json.dumps(x, sort_keys=True), encoding="utf-8")
+          plan = json.loads((root / "study-plan.json").read_text(encoding="utf-8"))
+          data = {
+              "schema_version": 1, "source_class": "CURATED_SYNTHETIC_ONLY",
+              "tasks": [{
+                  "task_id": row["task_id"], "order": row["order"],
+                  "manual_seconds": 300, "fri_seconds": 60,
+                  "manual_correct": True, "fri_correct": True,
+                  "manual_citations_correct": True,
+                  "fri_citations_correct": True,
+                  "manual_independence_error": False,
+                  "fri_independence_error": False,
+              } for row in plan["assignments"]],
+          }
+          (root / "synthetic-times.json").write_text(
+              json.dumps(data, sort_keys=True), encoding="utf-8"
+          )
+          PY
+          python -m forexpro_ri.cli review rubric-score \
+            --dir "$tmpdir/pack" --input "$tmpdir/rubric-a.json" \
+            --out "$tmpdir/checked-a.json"
+          python -m forexpro_ri.cli review rubric-score \
+            --dir "$tmpdir/pack" --input "$tmpdir/rubric-b.json" \
+            --out "$tmpdir/checked-b.json"
+          python -m forexpro_ri.cli review rubric-compare \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-b.json" \
+            --out "$tmpdir/curator-differences.json"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/discussion-input.json"
+          python - "$tmpdir/discussion-input.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          report = json.loads(p.read_text(encoding="utf-8"))
+          report["decisions"][0].update({
+              "choice": "ACCEPT_FOR_DISCUSSION",
+              "reason_code": "NEW_EXPERIMENT_QUESTION",
+          })
+          p.write_text(json.dumps(report), encoding="utf-8")
+          PY
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/discussion-input.json" \
+            --out "$tmpdir/discussion.json"
+          python -m forexpro_ri.cli review reconcile-human \
+            --dir "$tmpdir/pack" --decisions "$tmpdir/discussion.json" \
+            --rubric "$tmpdir/checked-b.json" \
+            --out "$tmpdir/reconciled.json"
+          python - "$tmpdir/reconciled.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert result["questions_requiring_reconciliation"] == 1
+          assert result["status"] == "HUMAN_RECONCILIATION_REQUIRED"
+          assert result["scientific_authority"] is False
+          PY
+          python -m forexpro_ri.cli review study-reconcile \
+            --dir "$tmpdir/pack" --plan "$tmpdir/study-plan.json" \
+            --input "$tmpdir/synthetic-times.json" \
+            --out "$tmpdir/study-results.json"
+          if python -m forexpro_ri.cli review rubric-compare \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-a.json" \
+            --out "$tmpdir/false-two-reviewers.json"; then
+            echo "FAIL: identical curator files accepted as separate reviews" >&2
+            exit 1
+          fi
+          python - "$tmpdir/study-results.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert result["all_task_orders_match_assignment"] is True
+          assert result["real_world_100x_confirmed"] is False
+          assert result["scientific_authority"] is False
+          PY
