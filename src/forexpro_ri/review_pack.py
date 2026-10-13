@@ -251,6 +251,8 @@ def render_review_html(report: dict[str, Any]) -> str:
         for item in report["review_topics"]:
             lines.append("<article><h3>" + esc(item["procedure"]) + " — " + esc(item["kind"]) + "</h3>")
             lines.append("<p>" + esc(item["question_for_new_experiment"]) + "</p>")
+            lines.append("<p><small>Attention basis: " + esc(item["reason"]) +
+                         " · Evidence visibility: " + esc(item["evidence_visibility"]) + "</small></p>")
             lines.append("<p><small>Topic: " + esc(item["item_id"]) +
                          " · Descriptive only; not causal or independent replication.</small></p>")
             if item["evidence_sample_truncated"]:
@@ -273,11 +275,32 @@ def render_review_html(report: dict[str, Any]) -> str:
                          "</code> · Receipt <code>" + esc(c["receipt_sha256"]) + "</code></p>")
             lines.append("<ul>")
             for outcome in c["procedure_outcomes"]:
-                lines.append("<li>" + esc(outcome["procedure"]) + ": " +
-                             esc(outcome["recorded_status"]) + "</li>")
+                lines.append("<li><details><summary>" + esc(outcome["procedure"]) + ": " +
+                             esc(outcome["recorded_status"]) + "</summary>")
+                lines.append("<p><small>Expected procedure (operator declaration): " +
+                             esc(outcome["expected_by_operator"]) + "</small></p>")
+                if outcome["criteria_evidence"]:
+                    lines.append("<ul>")
+                    for criterion in outcome["criteria_evidence"]:
+                        lines.append("<li>Criterion " + esc(criterion["criterion_id"]) +
+                                     " · " + esc(criterion["recorded_verdict"]) +
+                                     " · observation digest <code>" +
+                                     esc(criterion["observation_sha256"]) + "</code></li>")
+                    lines.append("</ul>")
+                if outcome["not_evaluable_reason_sha256"]:
+                    lines.append("<p>Recorded not-evaluable reason digest: <code>" +
+                                 esc(outcome["not_evaluable_reason_sha256"]) + "</code></p>")
+                if outcome["recorded_status"] == "UNOBSERVED":
+                    lines.append("<p>No stored procedure evidence: UNOBSERVED, not PASS.</p>")
+                lines.append("</details></li>")
             lines.append("</ul><p>Similar observed cases (not independent replication):</p><ul>")
             for row in c["similar_observed_cases"]:
-                lines.append("<li>" + esc(row["experiment"]["experiment_id"]) + "</li>")
+                eid = row["experiment"]["experiment_id"]
+                anchor = case_anchors.get(eid)
+                if anchor is None:
+                    raise EvidenceError("unlinked similar-case reference")
+                lines.append("<li><a href=\"#" + anchor + "\">" +
+                             esc(eid) + "</a></li>")
             lines.append("</ul></article>")
         lines.append("</section>")
     lines.append("<section><h2>Limitations</h2><ul>")
