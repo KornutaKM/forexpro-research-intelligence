@@ -45,20 +45,20 @@ class CuratorRubricCLITests(unittest.TestCase):
         changed = read_private_json(two)
         changed["items"][0]["grounding"] = "UNSUPPORTED_BY_RECORDED_EVIDENCE"
         two.write_text(json.dumps(changed), encoding="utf-8")
-        scored = self.root / "scored-a.json", self.root / "scored-b.json"
+        scored, scored_b = self.root / "scored-a.json", self.root / "scored-b.json"
         self.assertEqual(main(["review", "rubric-score", "--dir", str(self.directory),
                                "--input", str(one), "--out", str(scored)]), 0)
         self.assertEqual(main(["review", "rubric-score", "--dir", str(self.directory),
-                               "--input", str(two), "--out", str(scored.with_name("scored-b.json"))]), 0)
+                               "--input", str(two), "--out", str(scored_b)]), 0)
         out = self.root / "diff.json"
         self.assertEqual(main(["review", "rubric-compare", "--dir", str(self.directory),
-                               "--left", str(scored), "--right", str(scored.with_name("scored-b.json")),
+                               "--left", str(scored), "--right", str(scored_b),
                                "--out", str(out)]), 0)
         result = read_private_json(out)
         self.assertEqual(len(result["disagreements"]), 1)
         self.assertFalse(result["independent_reviewers_established"])
         self.assertEqual(main(["review", "rubric-compare", "--dir", str(self.directory),
-                               "--left", str(scored), "--right", str(scored.with_name("scored-b.json")),
+                               "--left", str(scored), "--right", str(scored_b),
                                "--out", str(out)]), 2)
 
     def test_fails_if_attempting_write_inside_review_pack(self):
