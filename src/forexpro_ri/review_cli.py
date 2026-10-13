@@ -38,6 +38,12 @@ def run(argv: list[str]) -> int:
     cohort.add_argument("--out", type=Path, required=True)
     check = commands.add_parser("verify", help="Verify local pack digest and rendered HTML identity")
     check.add_argument("--dir", type=Path, required=True)
+    audit = commands.add_parser("audit", help="Reconcile all evidence, procedure counts, links and hash")
+    audit.add_argument("--dir", type=Path, required=True)
+    compare = commands.add_parser("compare", help="Compare two validated append-only review snapshots")
+    compare.add_argument("--before", type=Path, required=True)
+    compare.add_argument("--after", type=Path, required=True)
+    compare.add_argument("--out", type=Path, required=True, help="New private JSON file")
     benchmark = commands.add_parser("benchmark", help="Evaluate a pack against independent synthetic labels")
     benchmark.add_argument("--dir", type=Path, required=True)
     benchmark.add_argument("--labels", type=Path, required=True)
@@ -52,6 +58,38 @@ def run(argv: list[str]) -> int:
     decisions.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "compare":
+            from .review_diff import compare_review_packs
+            def checked_pack(source: Path):
+                if source.is_symlink() or not source.is_dir():
+                    raise EvidenceError("comparison pack folder invalid")
+                a, b = source / "review.json", source / "index.html"
+                if (a.is_symlink() or b.is_symlink() or not a.is_file()
+                        or not b.is_file() or a.stat().st_size > _MAX_REPORT_BYTES
+                        or b.stat().st_size > _MAX_HTML_BYTES):
+                    raise EvidenceError("comparison pack has unsafe files")
+                data = json.loads(a.read_text("utf-8"))
+                verify_review_pack(data)
+                if b.read_bytes() != render_review_html(data).encode("utf-8"):
+                    raise EvidenceError("comparison report HTML differs from JSON")
+                return data
+            previous = checked_pack(args.before)
+            current = checked_pack(args.after)
+            result = compare_review_packs(previous, current)
+            target = args.out
+            if (target.is_symlink() or target.exists() or not target.parent.is_dir()
+                    or target.parent.is_symlink()
+                    or target.resolve().is_relative_to(args.before.resolve())
+                    or target.resolve().is_relative_to(args.after.resolve())):
+                raise EvidenceError("unsafe comparison output path")
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as output:
+                output.write(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+            print(json.dumps({"status": "LOCAL_APPEND_ONLY_COMPARE_CREATED",
+                              "report_sha256": result["report_sha256"],
+                              "new_record_count": result["new_record_count"],
+                              "scientific_authority": False}, sort_keys=True))
+            return 0
         if args.command == "study":
             from .review_time_study import analyze_paired_study
             source = args.input
@@ -60,7 +98,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(json.loads(source.read_text("utf-8")))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "benchmark", "decision-template", "decisions"):
+        if args.command in ("verify", "audit", "benchmark", "decision-template", "decisions"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -96,6 +134,10 @@ def run(argv: list[str]) -> int:
                     "status": "PRIVATE_REVIEW_SIDECAR_CREATED", "authority": "NONE",
                     "topics": len(data["review_topics"]),
                 }, sort_keys=True))
+                return 0
+            if args.command == "audit":
+                from .review_integrity import audit_review_structure
+                print(json.dumps(audit_review_structure(data), ensure_ascii=False, sort_keys=True))
                 return 0
             if args.command == "benchmark":
                 from .review_quality import score_review_pack
