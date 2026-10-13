@@ -18,6 +18,7 @@ Run the synthetic, locally signed end-to-end demo:
       --labels examples/review_cohort_gold.json
     python -m forexpro_ri.cli review audit --dir local_data/review-cohort
     python -m forexpro_ri.cli review triage --dir local_data/review-cohort
+    python -m forexpro_ri.cli review repetition --dir local_data/review-cohort
     python -m forexpro_ri.cli review compare \
       --before local_data/review-cohort --after local_data/review-cohort \
       --out local_data/review-progress.json
@@ -45,7 +46,9 @@ current export permission, scientific validation, HOLDOUT or broker authority.
 See docs/RESEARCH_REVIEW_PACK.md, docs/CORE_INTEROPERABILITY_LANES.md and
 docs/REVIEW_QUALITY_BENCHMARK.md, plus
 docs/REVIEW_VERIFICATION_AND_PROGRESSION.md and
-docs/OPERATOR_TRIAGE_AND_PEER_REVIEW.md. The 20-case cohort and time study are
+docs/OPERATOR_TRIAGE_AND_PEER_REVIEW.md. The latest operator dashboard adds
+linked repeated-negative-pattern cautions and human disagreement summaries;
+their matches are not independent scientific replication. The 20-case cohort and time study are
 explicitly synthetic; no real operator acceleration is claimed. Private
 review decisions can only accept a research question for human discussion;
 they cannot register experiments or send commands to Core.
