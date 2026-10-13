@@ -210,6 +210,9 @@ def audit_review_structure(report: dict[str, Any]) -> dict[str, Any]:
         if status in ("SYNTHETIC_DEMONSTRATION", "SYNTHETIC_SIGNED_DEMONSTRATION") and not eid.startswith("SYNTHETIC-"):
             _bad("synthetic report contains non-synthetic ID")
         states[eid] = _outcomes(case)
+        if ("FAIL" in states[eid].values()
+                and case["recorded_disposition"] != "CLOSED_UNSUCCESSFUL"):
+            _bad("failed procedure cannot claim merely incomplete closure")
         criteria_count += sum(len(x["criteria_evidence"]) for x in case["procedure_outcomes"])
         actual_gaps = case["evidence_visibility_gaps"]
         if type(actual_gaps) is not list:
