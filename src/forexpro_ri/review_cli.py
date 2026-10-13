@@ -35,9 +35,12 @@ def run(argv: list[str]) -> int:
     demo.add_argument("--out", type=Path, required=True)
     check = commands.add_parser("verify", help="Verify local pack digest and rendered HTML identity")
     check.add_argument("--dir", type=Path, required=True)
+    benchmark = commands.add_parser("benchmark", help="Evaluate a pack against independent synthetic labels")
+    benchmark.add_argument("--dir", type=Path, required=True)
+    benchmark.add_argument("--labels", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        if args.command == "verify":
+        if args.command in ("verify", "benchmark"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -51,6 +54,17 @@ def run(argv: list[str]) -> int:
             verify_review_pack(data)
             if h.read_bytes() != render_review_html(data).encode("utf-8"):
                 raise EvidenceError("pack HTML mismatch")
+            if args.command == "benchmark":
+                from .review_quality import score_review_pack
+                labels_path = args.labels
+                if labels_path.is_symlink() or not labels_path.is_file():
+                    raise EvidenceError("independent label file must be a regular file")
+                if labels_path.stat().st_size > _MAX_REPORT_BYTES:
+                    raise EvidenceError("benchmark labels exceed size limit")
+                labels = json.loads(labels_path.read_text("utf-8"))
+                score = score_review_pack(data, labels)
+                print(json.dumps(score, sort_keys=True))
+                return 0 if score["status"] == "STRUCTURAL_PASS" else 2
             print(json.dumps({"status": "LOCAL_PACK_INTEGRITY_PASS",
                               "report_sha256": data["report_sha256"],
                               "scientific_authority": False,
