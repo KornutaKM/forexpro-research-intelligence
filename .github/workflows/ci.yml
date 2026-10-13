@@ -263,3 +263,48 @@ jobs:
             echo "FAIL: append-only comparison accepted missing cases" >&2
             exit 1
           fi
+
+
+      - name: Issue 19 evidence-first triage and two-reviewer negative rehearsal
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          python -m forexpro_ri.cli review cohort-demo --out "$tmpdir/pack"
+          python -m forexpro_ri.cli review verify --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review triage --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/reviewer-a.json"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/reviewer-b.json"
+          python - "$tmpdir/reviewer-b.json" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          data = json.loads(path.read_text(encoding="utf-8"))
+          data["decisions"][0].update({
+              "choice": "ACCEPT_FOR_DISCUSSION",
+              "reason_code": "NEW_EXPERIMENT_QUESTION",
+          })
+          path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+          PY
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/reviewer-a.json" \
+            --out "$tmpdir/checked-a.json"
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/reviewer-b.json" \
+            --out "$tmpdir/checked-b.json"
+          python -m forexpro_ri.cli review agreement \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-b.json" \
+            --out "$tmpdir/disagreement.json"
+          if python -m forexpro_ri.cli review agreement \
+            --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
+            --right "$tmpdir/checked-a.json" \
+            --out "$tmpdir/false-independence.json"; then
+            echo "FAIL: identical reviewer sidecars claimed independent review" >&2
+            exit 1
+          fi
