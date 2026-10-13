@@ -101,3 +101,38 @@ No end-to-end data release from Core has been authorized. The proof boundary
 is structural: report/citation/decision consistency, not semantic truth,
 current signer revocation or authorized source export. Independent human
 study remains necessary before claiming reduced analysis time.
+
+
+## D. Repeated negative patterns — avoid blind research duplication
+
+Create a signed-only synthetic cohort, verify it and inspect repeated
+recorded negative-signature groups:
+
+    python -m forexpro_ri.cli review cohort-demo --out local_data/negative-cohort
+    python -m forexpro_ri.cli review repetition --dir local_data/negative-cohort
+
+The report's HTML contains a section titled **Repeated negative-pattern
+cautions**, with local links back to the exact research dossiers. A group
+requires at least two distinct stored experiment IDs with the **same set** of
+recorded procedure-level FAIL and NOT_EVALUABLE states. PASS and UNOBSERVED
+are excluded from this negative signature: absence of evidence is not
+evidence of failure. Group hashes bind only these categorical procedure
+states, not raw observations or source data.
+
+The output gives group count, sampled experiment ID + entry/receipt SHA-256,
+an explicit sample-truncated flag for groups with more than six members and
+non-authoritative suggested action:
+REVIEW_PRIOR_NEGATIVES_BEFORE_PROPOSING_NEW_RESEARCH.
+
+This is a *candidate redundancy alert*, not a deduplicated independent-trial
+count. Identical patterns can arise from different source data, different
+strategies or different reasons. Distinct experiment IDs may arise from
+the same data and same experiment lineage. **Neither case establishes
+causality, scientific independence, a trading opportunity or automatic
+rejection of a future preregistered experiment.** Human review is mandatory.
+
+The repetition command checks the pack schema, internal cross-source
+consistency, content hash and HTML identity before returning local JSON.
+It does not query external APIs, write to Research Memory or return commands
+to ForexPro Core. Its synthetic acceptance and negative tamper tests run in
+public-safe CI; real source exchanges remain blocked.
