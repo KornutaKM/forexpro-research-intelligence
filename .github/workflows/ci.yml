@@ -245,6 +245,8 @@ jobs:
           python -m forexpro_ri.cli review audit --dir "$tmpdir/cohort"
           python -m forexpro_ri.cli review benchmark \
             --dir "$tmpdir/cohort" --labels examples/review_cohort_gold.json
+          python -m forexpro_ri.cli review recall \
+            --dir "$tmpdir/cohort" --labels examples/review_question_recall_gold.json
           python -m forexpro_ri.cli review study \
             --input examples/review_time_study_synthetic.json
           python -m forexpro_ri.cli review decision-template \
@@ -371,6 +373,36 @@ jobs:
             --dir "$tmpdir/pack" --left "$tmpdir/checked-a.json" \
             --right "$tmpdir/checked-b.json" \
             --out "$tmpdir/curator-differences.json"
+          python -m forexpro_ri.cli review decision-template \
+            --dir "$tmpdir/pack" --out "$tmpdir/discussion-input.json"
+          python - "$tmpdir/discussion-input.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          report = json.loads(p.read_text(encoding="utf-8"))
+          report["decisions"][0].update({
+              "choice": "ACCEPT_FOR_DISCUSSION",
+              "reason_code": "NEW_EXPERIMENT_QUESTION",
+          })
+          p.write_text(json.dumps(report), encoding="utf-8")
+          PY
+          python -m forexpro_ri.cli review decisions \
+            --dir "$tmpdir/pack" --input "$tmpdir/discussion-input.json" \
+            --out "$tmpdir/discussion.json"
+          python -m forexpro_ri.cli review reconcile-human \
+            --dir "$tmpdir/pack" --decisions "$tmpdir/discussion.json" \
+            --rubric "$tmpdir/checked-b.json" \
+            --out "$tmpdir/reconciled.json"
+          python - "$tmpdir/reconciled.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert result["questions_requiring_reconciliation"] == 1
+          assert result["status"] == "HUMAN_RECONCILIATION_REQUIRED"
+          assert result["scientific_authority"] is False
+          PY
           python -m forexpro_ri.cli review study-reconcile \
             --dir "$tmpdir/pack" --plan "$tmpdir/study-plan.json" \
             --input "$tmpdir/synthetic-times.json" \
