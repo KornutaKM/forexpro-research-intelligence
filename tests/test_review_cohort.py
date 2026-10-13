@@ -114,9 +114,8 @@ class ReviewCohortTests(unittest.TestCase):
         fake["report_sha256"] = hashlib.sha256(canonical_json({
             k: v for k, v in fake.items() if k != "report_sha256"
         }).encode("utf-8")).hexdigest()
-        quality = score_review_pack(fake, labels)
-        self.assertEqual(quality["status"], "REQUIRES_CURATOR_REVIEW")
-        self.assertGreater(len(quality["incorrect_procedure_statuses"]), 0)
+        with self.assertRaises(EvidenceError):
+            score_review_pack(fake, labels)
 
     def test_bad_labels_not_scored_as_success(self):
         _, labels, pack = self.load()
