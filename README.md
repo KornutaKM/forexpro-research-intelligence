@@ -16,6 +16,10 @@ Run the synthetic, locally signed end-to-end demo:
     python -m forexpro_ri.cli review cohort-demo --out local_data/review-cohort
     python -m forexpro_ri.cli review benchmark --dir local_data/review-cohort \
       --labels examples/review_cohort_gold.json
+    python -m forexpro_ri.cli review audit --dir local_data/review-cohort
+    python -m forexpro_ri.cli review compare \
+      --before local_data/review-cohort --after local_data/review-cohort \
+      --out local_data/review-progress.json
     python -m forexpro_ri.cli review study \
       --input examples/review_time_study_synthetic.json
     python -m forexpro_ri.cli review decision-template \
@@ -32,7 +36,8 @@ The pack is advisory only: a historical signed receipt is **not** proof of
 current export permission, scientific validation, HOLDOUT or broker authority.
 
 See docs/RESEARCH_REVIEW_PACK.md, docs/CORE_INTEROPERABILITY_LANES.md and
-docs/REVIEW_QUALITY_BENCHMARK.md. The 20-case cohort and time study are
+docs/REVIEW_QUALITY_BENCHMARK.md, plus
+docs/REVIEW_VERIFICATION_AND_PROGRESSION.md. The 20-case cohort and time study are
 explicitly synthetic; no real operator acceleration is claimed. Private
 review decisions can only accept a research question for human discussion;
 they cannot register experiments or send commands to Core.
