@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -42,6 +43,13 @@ def run(argv: list[str]) -> int:
     benchmark.add_argument("--labels", type=Path, required=True)
     study = commands.add_parser("study", help="Analyze private paired researcher timings (no uploads)")
     study.add_argument("--input", type=Path, required=True)
+    template = commands.add_parser("decision-template", help="Private editable human review template")
+    template.add_argument("--dir", type=Path, required=True)
+    template.add_argument("--out", type=Path, required=True)
+    decisions = commands.add_parser("decisions", help="Validate human accept/defer/reject sidecar")
+    decisions.add_argument("--dir", type=Path, required=True)
+    decisions.add_argument("--input", type=Path, required=True)
+    decisions.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "study":
@@ -52,7 +60,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(json.loads(source.read_text("utf-8")))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "benchmark"):
+        if args.command in ("verify", "benchmark", "decision-template", "decisions"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -66,6 +74,29 @@ def run(argv: list[str]) -> int:
             verify_review_pack(data)
             if h.read_bytes() != render_review_html(data).encode("utf-8"):
                 raise EvidenceError("pack HTML mismatch")
+            if args.command in ("decision-template", "decisions"):
+                from .review_decisions import decision_template, assess_review_decisions
+                if args.command == "decision-template":
+                    response = decision_template(data)
+                else:
+                    selected = args.input
+                    if selected.is_symlink() or not selected.is_file() or selected.stat().st_size > _MAX_REPORT_BYTES:
+                        raise EvidenceError("invalid decision input file")
+                    response = assess_review_decisions(data, json.loads(selected.read_text("utf-8")))
+                target = args.out
+                if (target.is_symlink() or target.exists() or not target.parent.is_dir()
+                        or target.parent.is_symlink() or target.resolve().is_relative_to(source.resolve())
+                        or (args.command == "decisions" and target.resolve() == args.input.resolve())):
+                    raise EvidenceError("unsafe decision output path")
+                payload = json.dumps(response, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as output:
+                    output.write(payload)
+                print(json.dumps({
+                    "status": "PRIVATE_REVIEW_SIDECAR_CREATED", "authority": "NONE",
+                    "topics": len(data["review_topics"]),
+                }, sort_keys=True))
+                return 0
             if args.command == "benchmark":
                 from .review_quality import score_review_pack
                 labels_path = args.labels
