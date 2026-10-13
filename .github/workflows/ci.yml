@@ -275,6 +275,7 @@ jobs:
           python -m forexpro_ri.cli review cohort-demo --out "$tmpdir/pack"
           python -m forexpro_ri.cli review verify --dir "$tmpdir/pack"
           python -m forexpro_ri.cli review triage --dir "$tmpdir/pack"
+          python -m forexpro_ri.cli review repetition --dir "$tmpdir/pack"
           python -m forexpro_ri.cli review decision-template \
             --dir "$tmpdir/pack" --out "$tmpdir/reviewer-a.json"
           python -m forexpro_ri.cli review decision-template \
