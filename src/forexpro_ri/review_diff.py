@@ -16,8 +16,8 @@ from .review_pack import verify_review_pack
 _COUNTS = ("failed_experiments", "passed_experiments",
            "not_evaluable_experiments", "unobserved_experiments")
 _CLASS = {
-    "SYNTHETIC_DEMONSTRATION": "synthetic",
-    "SYNTHETIC_SIGNED_DEMONSTRATION": "synthetic",
+    "SYNTHETIC_DEMONSTRATION": "synthetic_unsigned",
+    "SYNTHETIC_SIGNED_DEMONSTRATION": "synthetic_signed",
     "HISTORICAL_SIGNED_INTAKES": "historical",
     "NO_ELIGIBLE_DATA": "empty",
 }
@@ -33,7 +33,7 @@ def compare_review_packs(before: dict[str, Any], after: dict[str, Any]) -> dict[
     verify_review_pack(after)
     a, b = _CLASS[before["status"]], _CLASS[after["status"]]
     if a != "empty" and b != "empty" and a != b:
-        raise EvidenceError("cannot conflate synthetic and non-synthetic research")
+        raise EvidenceError("cannot conflate different provenance classes")
     left = {x["experiment_id"]: x for x in before["cases"]}
     right = {x["experiment_id"]: x for x in after["cases"]}
     if not set(left) <= set(right):
