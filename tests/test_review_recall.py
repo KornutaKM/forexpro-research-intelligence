@@ -27,6 +27,8 @@ class QuestionRecallTests(unittest.TestCase):
         cls.root = Path(temp.name)
         db = cls.root / "cohort.sqlite"
         created = make_signed_cohort(cls.root, db)
+        cls.database = db
+        cls.procedures = created["expected_procedures"]
         cls.pack = build_review_pack(db, expected_procedures=created["expected_procedures"])
         cls.gold = json.loads(GOLD.read_text("utf-8"))
 
@@ -119,6 +121,23 @@ class QuestionRecallTests(unittest.TestCase):
         }).encode()).hexdigest()
         with self.assertRaises(EvidenceError):
             evaluate_advisor_recall(pack, self.gold)
+
+    def test_top_n_truncation_creates_measurable_missed_questions(self):
+        short = build_review_pack(
+            self.database, expected_procedures=self.procedures, max_items=2
+        )
+        result = evaluate_advisor_recall(short, self.gold)
+        self.assertEqual(result["true_positive_procedures"], 2)
+        self.assertEqual(result["false_negative_missed_procedures"], 4)
+        self.assertEqual(result["recall"]["numerator"], 2)
+        self.assertEqual(result["recall"]["denominator"], 6)
+        self.assertEqual(result["status"], "NEEDS_REVIEW")
+
+    def test_non_string_gold_label_rejected(self):
+        gold = copy.deepcopy(self.gold)
+        gold["targets"][0]["label"] = ["SHOULD_REVIEW"]
+        with self.assertRaises(EvidenceError):
+            evaluate_advisor_recall(self.pack, gold)
 
     def test_determinism_and_no_core_control(self):
         a = evaluate_advisor_recall(self.pack, self.gold)
