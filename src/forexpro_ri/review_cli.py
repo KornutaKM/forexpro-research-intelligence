@@ -42,6 +42,8 @@ def run(argv: list[str]) -> int:
     audit.add_argument("--dir", type=Path, required=True)
     triage = commands.add_parser("triage", help="Evidence-first operator summary from verified pack")
     triage.add_argument("--dir", type=Path, required=True)
+    repetitions = commands.add_parser("repetition", help="Linked repeated negative-case cautions")
+    repetitions.add_argument("--dir", type=Path, required=True)
     compare = commands.add_parser("compare", help="Compare two validated append-only review snapshots")
     compare.add_argument("--before", type=Path, required=True)
     compare.add_argument("--after", type=Path, required=True)
@@ -105,7 +107,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(json.loads(source.read_text("utf-8")))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "audit", "triage", "agreement", "benchmark", "decision-template", "decisions"):
+        if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -141,6 +143,11 @@ def run(argv: list[str]) -> int:
                     "status": "PRIVATE_REVIEW_SIDECAR_CREATED", "authority": "NONE",
                     "topics": len(data["review_topics"]),
                 }, sort_keys=True))
+                return 0
+            if args.command == "repetition":
+                from .review_repetition import find_repeated_negatives
+                result = find_repeated_negatives(data)
+                print(json.dumps(result, ensure_ascii=False, sort_keys=True))
                 return 0
             if args.command == "triage":
                 from .review_triage import summarize_review
