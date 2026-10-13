@@ -1,5 +1,28 @@
 # ForexPro Research Intelligence (FRI)
 
+
+## In review: Issue #19 Research Review Pack (Draft PR)
+
+The proposed Research Review Pack combines existing signed Research Memory,
+Failure Intelligence, Dossier and Advisor into **one offline HTML + JSON report**
+without adding a second scientific database or Core exporter.
+
+Run the synthetic, locally signed end-to-end demo:
+
+    python -m forexpro_ri.cli review demo --out local_data/review-demo
+    python -m forexpro_ri.cli review verify --dir local_data/review-demo
+
+Open local_data/review-demo/index.html locally; keep any real reports private.
+The demo never accesses Core or uses real research. For existing, separately
+authorized closed Research Memory intakes, use review pack --db ... --out ....
+The pack is advisory only: a historical signed receipt is **not** proof of
+current export permission, scientific validation, HOLDOUT or broker authority.
+
+See docs/RESEARCH_REVIEW_PACK.md and docs/CORE_INTEROPERABILITY_LANES.md.
+The PREVIEW lane remains unimplemented and strictly excluded from scientific
+Research Memory. Real Core closed-experiment export remains blocked by the
+source-owner release and privacy decisions in Issue #19.
+
 Public-source, offline, read-only **advisory** companion for a separately operated research platform.
 
 ## v2.4 — Evidence-constrained Research Advisor
