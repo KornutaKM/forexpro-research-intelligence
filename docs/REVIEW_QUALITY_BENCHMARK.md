@@ -79,10 +79,12 @@ published report files never include raw observations, strategy parameters,
 dataset bytes, source credentials or private path strings.
 
 The gold table is stored separately from the generator and does not use
-the generated report as an oracle. It is a synthetic curator *fixture*, not
-independent scientific validation, a real approved Core result or a measure
-of advisor semantic correctness. Reviewers should inspect the gold labels
-before treating the benchmark's structural pass as meaningful.
+the generated report as an oracle. Its expected statuses were specified from
+the same designed synthetic scenario catalog, so the table has **not** been
+blindly verified by an independent external curator. It is an engineering
+fixture, not independent scientific validation, a real approved Core result
+or a measure of Advisor semantic correctness. An independent human must
+review scenario design and gold labels before a product-quality claim.
 
 ## Private paired operator time-study (descriptive only)
 
