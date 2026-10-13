@@ -48,7 +48,7 @@ class ReviewPackTests(unittest.TestCase):
         self.assertFalse(any(a["authority"].values()))
         self.assertGreater(len(a["review_topics"]), 0)
         self.assertEqual(a["cases"][0]["experiment_id"], "SYNTHETIC-BRIDGE-001")
-        self.assertEqual(a["cases"][0]["evidence_visibility"], "HISTORICAL_SIGNED_INTAKE_ONLY")
+        self.assertEqual(a["cases"][0]["evidence_visibility"], "SIGNED_SYNTHETIC_TEST_ONLY")
         states = {row["procedure"]: row["recorded_status"]
                   for row in a["cases"][0]["procedure_outcomes"]}
         self.assertEqual(states["REGIME_STABILITY"], "NOT_EVALUABLE")
