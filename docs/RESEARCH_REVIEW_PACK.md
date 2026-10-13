@@ -101,3 +101,45 @@ The operator must retain trusted independent copies of source approvals.
   private SQLite state out of GitHub repositories and logs.
 
 For the two-lane exchange policy, see CORE_INTEROPERABILITY_LANES.md.
+
+
+## Private, SHA-bound human review decisions
+
+A Research Review Pack is a recommendation to a researcher, not an instruction
+for the research engine. A separate private *human decision sidecar* allows
+reviewing each generated question as a discussion candidate:
+
+    python -m forexpro_ri.cli review decision-template \
+      --dir local_data/review-cohort \
+      --out local_data/operator-decisions-input.json
+
+Edit the input file locally. Every item must retain its exact item_id and
+the source_pack_sha256 must match the immutable Review Pack. Each decision
+is one of:
+
+| Choice | Allowed bounded reason code |
+| --- | --- |
+| DEFER | PENDING_REVIEW or NEEDS_INDEPENDENT_REVIEW |
+| ACCEPT_FOR_DISCUSSION | NEW_EXPERIMENT_QUESTION or EVIDENCE_GAP_FOR_REVIEW |
+| REJECT | DUPLICATE_PRIOR_WORK, UNSUPPORTED_OR_UNACTIONABLE or NEEDS_INDEPENDENT_REVIEW |
+
+The operator must review **all** topics: missing or duplicate topic IDs are
+rejected. The final validation command writes a separate private JSON file:
+
+    python -m forexpro_ri.cli review decisions \
+      --dir local_data/review-cohort \
+      --input local_data/operator-decisions-input.json \
+      --out local_data/operator-decisions-reviewed.json
+
+This command verifies the original JSON and HTML, binds every choice to that
+exact report SHA, checks choice/reason compatibility, and creates a new file
+with restrictive local permissions. It never updates the Review Pack or
+Research Memory and makes no Core request. ACCEPT_FOR_DISCUSSION is **not**
+scientific admission, a preregistered experiment, permission to run a trial,
+or authority over Core execution.
+
+This self-reported sidecar does not authenticate a reviewer identity, provide
+a signature, or prove consent. Use the organization's separate independent
+review/custody process where identity attribution is required. No personal
+names, free-text explanations, private paths, strategy parameters or raw
+observations belong in the sidecar.
