@@ -25,6 +25,12 @@ only in a temporary directory and are removed on exit. Only the operator-selecte
 output directory remains. The test signature does not give export, scientific,
 HOLDOUT, promotion or trading permission.
 
+The two built-in ephemeral TEST signer IDs are classified as
+SYNTHETIC_SIGNED_DEMONSTRATION (not HISTORICAL_SIGNED_INTAKES); case and topic
+visibility is SIGNED_SYNTHETIC_TEST_ONLY. Matching a known test signer label
+is not secure declassification or approval for real imports. A signature does
+not establish source-owner permission, even when all test checks pass.
+
 ## Review existing locally imported closed research
 
 Only after separately approved operator intake into private Research Memory:
