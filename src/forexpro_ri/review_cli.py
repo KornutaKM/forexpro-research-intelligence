@@ -78,6 +78,15 @@ def run(argv: list[str]) -> int:
     rubric_compare.add_argument("--left", type=Path, required=True)
     rubric_compare.add_argument("--right", type=Path, required=True)
     rubric_compare.add_argument("--out", type=Path, required=True)
+    study_plan = commands.add_parser("study-plan", help="SHA-bound counterbalanced paired-task allocation")
+    study_plan.add_argument("--dir", type=Path, required=True)
+    study_plan.add_argument("--tasks", type=int, default=20)
+    study_plan.add_argument("--out", type=Path, required=True)
+    study_reconcile = commands.add_parser("study-reconcile", help="Validate task order against preregistered plan")
+    study_reconcile.add_argument("--dir", type=Path, required=True)
+    study_reconcile.add_argument("--plan", type=Path, required=True)
+    study_reconcile.add_argument("--input", type=Path, required=True)
+    study_reconcile.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "compare":
@@ -120,7 +129,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(read_private_json(source))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions", "rubric-template", "rubric-score", "rubric-compare"):
+        if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions", "rubric-template", "rubric-score", "rubric-compare", "study-plan", "study-reconcile"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -134,6 +143,30 @@ def run(argv: list[str]) -> int:
             verify_review_pack(data)
             if read_private_bytes(h, limit=_MAX_HTML_BYTES) != render_review_html(data).encode("utf-8"):
                 raise EvidenceError("pack HTML mismatch")
+            if args.command in ("study-plan", "study-reconcile"):
+                from .review_study_protocol import make_study_plan, assess_planned_study
+                sources = []
+                if args.command == "study-plan":
+                    response = make_study_plan(data, task_count=args.tasks)
+                else:
+                    sources = [args.plan, args.input]
+                    response = assess_planned_study(
+                        data, read_private_json(args.plan), read_private_json(args.input)
+                    )
+                target = args.out
+                if (target.is_symlink() or target.exists() or not target.parent.is_dir()
+                        or target.parent.is_symlink()
+                        or target.resolve().is_relative_to(source.resolve())
+                        or any(target.resolve() == p.resolve() for p in sources)):
+                    raise EvidenceError("unsafe study protocol output")
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                             | getattr(os, "O_NOFOLLOW", 0), 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as output:
+                    output.write(json.dumps(response, sort_keys=True, ensure_ascii=False, indent=2) + "\n")
+                print(json.dumps({"status": "PRIVATE_STUDY_PROTOCOL_CREATED",
+                                  "kind": args.command, "scientific_authority": False,
+                                  "source_pack_sha256": data["report_sha256"]}, sort_keys=True))
+                return 0
             if args.command in ("rubric-template", "rubric-score", "rubric-compare"):
                 from .review_curator import curator_template, assess_curator_rubric, compare_curator_rubrics
                 referenced = []
