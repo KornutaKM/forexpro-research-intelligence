@@ -53,9 +53,8 @@ class ReviewQualityTests(unittest.TestCase):
             if row["procedure"] == "REGIME_STABILITY":
                 row["recorded_status"] = "PASS"
         self._rehash(falsified)
-        result = score_review_pack(falsified, self.labels)
-        self.assertEqual(result["status"], "REQUIRES_CURATOR_REVIEW")
-        self.assertEqual(len(result["incorrect_procedure_statuses"]), 1)
+        with self.assertRaises(EvidenceError):
+            score_review_pack(falsified, self.labels)
 
     def test_forged_citation_fails_quality(self):
         forged = copy.deepcopy(self.pack)
@@ -64,9 +63,8 @@ class ReviewQualityTests(unittest.TestCase):
                 item["evidence_sample"][0]["receipt_sha256"] = "a" * 64
                 break
         self._rehash(forged)
-        result = score_review_pack(forged, self.labels)
-        self.assertGreater(result["false_citation_links"], 0)
-        self.assertEqual(result["status"], "REQUIRES_CURATOR_REVIEW")
+        with self.assertRaises(EvidenceError):
+            score_review_pack(forged, self.labels)
 
     def test_missing_review_topic_fails(self):
         altered = copy.deepcopy(self.pack)
