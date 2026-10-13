@@ -156,6 +156,25 @@ def build_review_pack(
             "dossier_sha256": dossier["report_sha256"],
         })
 
+    # Failure Intelligence covers procedures actually observed anywhere, while
+    # Dossier also includes operator-declared procedures that no experiment
+    # measured. Do not silently omit these all-UNOBSERVED gaps from the table.
+    coverage_by_proc = {row["procedure"]: row for row in failure["procedure_coverage"]}
+    dossier_procs = {r["procedure"] for r in cases[0]["procedure_outcomes"]}
+    for procedure in sorted(dossier_procs - set(coverage_by_proc)):
+        coverage_by_proc[procedure] = {
+            "procedure": procedure,
+            "failed_experiments": 0,
+            "passed_experiments": 0,
+            "not_evaluable_experiments": 0,
+            "unobserved_experiments": count,
+            "failure_evidence": [],
+            "not_evaluable_evidence": [],
+        }
+    if set(coverage_by_proc) != dossier_procs:
+        raise EvidenceError("unexpected procedure coverage mismatch")
+    merged_coverage = [coverage_by_proc[p] for p in sorted(coverage_by_proc)]
+
     topics = []
     for proposal in advisor["proposals"]:
         refs = proposal["evidence_sample"]
@@ -198,7 +217,7 @@ def build_review_pack(
         "provenance_audit_sha256": audit["report_sha256"],
         "failure_report_sha256": failure["report_sha256"],
         "advisor_report_sha256": advisor["report_sha256"],
-        "procedure_coverage": failure["procedure_coverage"],
+        "procedure_coverage": merged_coverage,
         "review_topics": topics,
         "cases": cases,
         "authority": dict(_AUTHORITY),
@@ -229,6 +248,10 @@ def verify_review_pack(report: dict[str, Any]) -> None:
         report.get("experiment_count") != 0 or report.get("cases") or report.get("review_topics")
     ):
         raise EvidenceError("empty state contains research claims")
+    # The hash only proves internal byte identity. Reconcile independent
+    # procedure outcomes, cohort counts and citation identities as well.
+    from .review_integrity import audit_review_structure
+    audit_review_structure(report)
 
 
 def render_review_html(report: dict[str, Any]) -> str:
