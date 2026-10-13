@@ -45,6 +45,19 @@ class ReviewRecallCLITests(unittest.TestCase):
         self.assertEqual(main(["review", "recall", "--dir", str(self.directory),
                                "--labels", str(source)]), 2)
 
+    def test_reduced_top_two_command_exposes_missed_questions(self):
+        short = self.root / "top-two"
+        self.assertEqual(main(["review", "cohort-demo", "--out", str(short),
+                               "--max-items", "2"]), 0)
+        self.assertEqual(main(["review", "recall", "--dir", str(short),
+                               "--labels", str(GOLD)]), 2)
+
+    def test_invalid_top_n_is_rejected_without_publication(self):
+        invalid = self.root / "invalid-top"
+        self.assertEqual(main(["review", "cohort-demo", "--out", str(invalid),
+                               "--max-items", "0"]), 2)
+        self.assertFalse(invalid.exists())
+
     def test_mutated_json_cannot_be_scored(self):
         report = self.directory / "review.json"
         valid = report.read_text("utf-8")
