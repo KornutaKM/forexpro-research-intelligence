@@ -247,6 +247,13 @@ jobs:
             --dir "$tmpdir/cohort" --labels examples/review_cohort_gold.json
           python -m forexpro_ri.cli review recall \
             --dir "$tmpdir/cohort" --labels examples/review_question_recall_gold.json
+          python -m forexpro_ri.cli review cohort-demo \
+            --out "$tmpdir/top-two" --max-items 2
+          if python -m forexpro_ri.cli review recall \
+            --dir "$tmpdir/top-two" --labels examples/review_question_recall_gold.json; then
+            echo "FAIL: truncated Advisor top-2 was accepted as complete recall" >&2
+            exit 1
+          fi
           python -m forexpro_ri.cli review study \
             --input examples/review_time_study_synthetic.json
           python -m forexpro_ri.cli review decision-template \
