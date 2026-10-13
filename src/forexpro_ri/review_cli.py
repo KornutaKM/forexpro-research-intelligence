@@ -37,6 +37,7 @@ def run(argv: list[str]) -> int:
     demo.add_argument("--out", type=Path, required=True)
     cohort = commands.add_parser("cohort-demo", help="Twenty signed SYNTHETIC closed studies")
     cohort.add_argument("--out", type=Path, required=True)
+    cohort.add_argument("--max-items", type=int, default=12, help="Advisor synthetic top-N, 1..12")
     check = commands.add_parser("verify", help="Verify local pack digest and rendered HTML identity")
     check.add_argument("--dir", type=Path, required=True)
     audit = commands.add_parser("audit", help="Reconcile all evidence, procedure counts, links and hash")
@@ -311,7 +312,8 @@ def run(argv: list[str]) -> int:
                 base = Path(scratch)
                 db = base / "cohort.sqlite"
                 cohort = make_signed_cohort(base, db)
-                pack = build_review_pack(db, expected_procedures=cohort["expected_procedures"])
+                pack = build_review_pack(db, expected_procedures=cohort["expected_procedures"],
+                                         max_items=args.max_items)
                 result = publish_review_pack(pack, args.out)
         elif args.command == "demo":
             from .bridge import create_synthetic_fixture
