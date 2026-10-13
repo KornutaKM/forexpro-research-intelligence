@@ -39,7 +39,7 @@ class ReviewCohortTests(unittest.TestCase):
         self.assertEqual(meta["experiment_ids"], sorted(labels["expected_cases"]))
         self.assertFalse(meta["private_key_persisted"])
         self.assertFalse(meta["independent_replication_established"])
-        self.assertEqual(pack["status"], "HISTORICAL_SIGNED_INTAKES")
+        self.assertEqual(pack["status"], "SYNTHETIC_SIGNED_DEMONSTRATION")
         self.assertEqual(pack["experiment_count"], 20)
         self.assertEqual(len(pack["cases"]), 20)
         self.assertFalse(any(pack["authority"].values()))
@@ -132,7 +132,7 @@ class ReviewCohortTests(unittest.TestCase):
                                "--labels", str(GOLD)]), 0)
         packed = json.loads((dest / "review.json").read_text(encoding="utf-8"))
         self.assertEqual(packed["experiment_count"], 20)
-        self.assertEqual(packed["status"], "HISTORICAL_SIGNED_INTAKES")
+        self.assertEqual(packed["status"], "SYNTHETIC_SIGNED_DEMONSTRATION")
         self.assertFalse(any(packed["authority"].values()))
 
     def test_repeated_generation_refused_without_overwrite(self):
