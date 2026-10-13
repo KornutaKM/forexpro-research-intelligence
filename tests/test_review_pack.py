@@ -85,6 +85,8 @@ class ReviewPackTests(unittest.TestCase):
                                  expected_procedures=["MONTE_CARLO"])
         self.assertEqual(demo["status"], "SYNTHETIC_DEMONSTRATION")
         self.assertEqual(demo["experiment_count"], 2)
+        self.assertTrue(all(topic["evidence_visibility"] == "UNSIGNED_SYNTHETIC_DEMO_ONLY"
+                            for topic in demo["review_topics"]))
         self.assertTrue(all(not case["similar_cases_truncated"] for case in demo["cases"]))
         self.assertFalse(any(demo["authority"].values()))
 
