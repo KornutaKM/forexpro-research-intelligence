@@ -73,6 +73,10 @@ class ReviewIntegrityTests(unittest.TestCase):
             recorded_status="PASS" if r["cases"][0]["procedure_outcomes"][0]["recorded_status"] != "PASS"
             else "FAIL"))
 
+    def test_rehashed_false_incomplete_disposition_rejected(self):
+        self.check_reject(lambda r: r["cases"][0].update(
+            recorded_disposition="CLOSED_INCOMPLETE"))
+
     def test_rehashed_gap_removed_rejected(self):
         self.check_reject(lambda r: r["cases"][0]["evidence_visibility_gaps"].clear())
 
