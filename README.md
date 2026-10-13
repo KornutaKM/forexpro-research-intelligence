@@ -11,6 +11,8 @@ Run the synthetic, locally signed end-to-end demo:
 
     python -m forexpro_ri.cli review demo --out local_data/review-demo
     python -m forexpro_ri.cli review verify --dir local_data/review-demo
+    python -m forexpro_ri.cli review benchmark --dir local_data/review-demo \
+      --labels examples/review_benchmark_labels.json
 
 Open local_data/review-demo/index.html locally; keep any real reports private.
 The demo never accesses Core or uses real research. For existing, separately
