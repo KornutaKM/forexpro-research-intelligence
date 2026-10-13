@@ -161,7 +161,8 @@ def build_review_pack(
             "question_for_new_experiment": proposal["question_for_new_experiment"],
             "evidence_sample": refs,
             "evidence_sample_truncated": proposal["evidence_sample_truncated"],
-            "evidence_visibility": "HISTORICAL_RECEIPT_NOT_CURRENT_EXPORT_PERMISSION",
+            "evidence_visibility": ("UNSIGNED_SYNTHETIC_DEMO_ONLY" if allow_unsigned_synthetic
+                                    else "HISTORICAL_RECEIPT_NOT_CURRENT_EXPORT_PERMISSION"),
             "interpretation": "DESCRIPTIVE_NOT_CAUSAL",
         })
 
