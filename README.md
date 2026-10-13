@@ -18,6 +18,12 @@ Run the synthetic, locally signed end-to-end demo:
       --labels examples/review_cohort_gold.json
     python -m forexpro_ri.cli review study \
       --input examples/review_time_study_synthetic.json
+    python -m forexpro_ri.cli review decision-template \
+      --dir local_data/review-cohort --out local_data/review-decisions.json
+    # Manually edit the separate decision JSON and then validate:
+    python -m forexpro_ri.cli review decisions \
+      --dir local_data/review-cohort --input local_data/review-decisions.json \
+      --out local_data/review-decisions-checked.json
 
 Open local_data/review-demo/index.html locally; keep any real reports private.
 The demo never accesses Core or uses real research. For existing, separately
@@ -27,7 +33,9 @@ current export permission, scientific validation, HOLDOUT or broker authority.
 
 See docs/RESEARCH_REVIEW_PACK.md, docs/CORE_INTEROPERABILITY_LANES.md and
 docs/REVIEW_QUALITY_BENCHMARK.md. The 20-case cohort and time study are
-explicitly synthetic; no real operator acceleration is claimed.
+explicitly synthetic; no real operator acceleration is claimed. Private
+review decisions can only accept a research question for human discussion;
+they cannot register experiments or send commands to Core.
 The PREVIEW lane remains unimplemented and strictly excluded from scientific
 Research Memory. Real Core closed-experiment export remains blocked by the
 source-owner release and privacy decisions in Issue #19.
