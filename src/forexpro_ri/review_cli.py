@@ -40,8 +40,18 @@ def run(argv: list[str]) -> int:
     benchmark = commands.add_parser("benchmark", help="Evaluate a pack against independent synthetic labels")
     benchmark.add_argument("--dir", type=Path, required=True)
     benchmark.add_argument("--labels", type=Path, required=True)
+    study = commands.add_parser("study", help="Analyze private paired researcher timings (no uploads)")
+    study.add_argument("--input", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == "study":
+            from .review_time_study import analyze_paired_study
+            source = args.input
+            if source.is_symlink() or not source.is_file() or source.stat().st_size > _MAX_REPORT_BYTES:
+                raise EvidenceError("paired-study input must be a bounded real local file")
+            result = analyze_paired_study(json.loads(source.read_text("utf-8")))
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
         if args.command in ("verify", "benchmark"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
