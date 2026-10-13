@@ -278,6 +278,33 @@ def render_review_html(report: dict[str, Any]) -> str:
     else:
         case_anchors = {c["experiment_id"]: "case-" + str(i + 1)
                         for i, c in enumerate(report["cases"])}
+        # Render only deterministic facts from the already validated pack.
+        from .review_triage import _summarize_verified
+        triage = _summarize_verified(report)
+        lines.append("<section><h2>Operator evidence triage</h2>"
+                     "<p><small>Attention to missing/insufficient recorded evidence — "
+                     "never scientific rank, trading opportunity or independent replication.</small></p>")
+        lines.append("<table><tr><th>Procedure</th><th>Attention</th><th>UNOBSERVED</th>"
+                     "<th>NOT_EVALUABLE</th><th>FAIL</th><th>Linked examples</th></tr>")
+        for row in triage["procedures"]:
+            counts = row["recorded_counts"]
+            lines.append("<tr><td>" + esc(row["procedure"]) + "</td><td>" +
+                         esc(row["attention_bucket"]) + "</td><td>" +
+                         esc(counts["UNOBSERVED"]) + "</td><td>" +
+                         esc(counts["NOT_EVALUABLE"]) + "</td><td>" +
+                         esc(counts["FAIL"]) + "</td><td>")
+            for ref in row["sampled_case_refs"]:
+                href = case_anchors.get(ref["experiment_id"])
+                if href is None:
+                    raise EvidenceError("unlinked operator triage case")
+                lines.append("<a href=\"#" + href + "\">" +
+                             esc(ref["experiment_id"]) + "</a> " +
+                             esc(ref["recorded_status"]) + " ")
+            if row["case_sample_truncated"]:
+                lines.append("<small>Sample truncated</small>")
+            lines.append("</td></tr>")
+        lines.append("</table><p><small>Operator questions retain their own "
+                     "evidence citations below; attention is descriptive only.</small></p></section>")
         lines.append("<section><h2>Procedure coverage</h2><table>"
                      "<tr><th>Procedure</th><th>FAIL</th><th>PASS</th>"
                      "<th>NOT_EVALUABLE</th><th>UNOBSERVED</th></tr>")
