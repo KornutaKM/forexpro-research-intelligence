@@ -43,7 +43,7 @@ class ReviewPackTests(unittest.TestCase):
         a = build_review_pack(self.db, expected_procedures=["MONTE_CARLO"])
         b = build_review_pack(self.db, expected_procedures=["MONTE_CARLO"])
         self.assertEqual(a, b)
-        self.assertEqual(a["status"], "HISTORICAL_SIGNED_INTAKES")
+        self.assertEqual(a["status"], "SYNTHETIC_SIGNED_DEMONSTRATION")
         self.assertEqual(a["experiment_count"], 1)
         self.assertFalse(any(a["authority"].values()))
         self.assertGreater(len(a["review_topics"]), 0)
@@ -140,7 +140,7 @@ class ReviewPackTests(unittest.TestCase):
         self.assertEqual(main(["review", "demo", "--out", str(out)]), 0)
         self.assertEqual(main(["review", "verify", "--dir", str(out)]), 0)
         report = json.loads((out / "review.json").read_text())
-        self.assertEqual(report["status"], "HISTORICAL_SIGNED_INTAKES")
+        self.assertEqual(report["status"], "SYNTHETIC_SIGNED_DEMONSTRATION")
         self.assertFalse(any(report["authority"].values()))
 
     def test_html_and_json_tampering_detected(self):
