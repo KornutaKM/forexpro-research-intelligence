@@ -13,6 +13,7 @@ from pathlib import Path
 
 from forexpro_ri.analysis import canonical_json
 from forexpro_ri.bridge import create_synthetic_fixture
+from forexpro_ri.review_cohort import make_signed_cohort
 from forexpro_ri.cli import main
 from forexpro_ri.contracts import EvidenceError
 from forexpro_ri.memory import ingest
@@ -137,6 +138,53 @@ class ReviewIntegrityTests(unittest.TestCase):
         rehash(missing)
         with self.assertRaises(EvidenceError):
             verify_review_pack(missing)
+
+
+class SimilarCaseConsistencyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls.temp.name)
+        database = cls.root / "cohort.sqlite"
+        info = make_signed_cohort(cls.root, database)
+        cls.report = build_review_pack(database, expected_procedures=info["expected_procedures"])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp.cleanup()
+
+    def attack(self, edit):
+        altered = copy.deepcopy(self.report)
+        edit(altered)
+        rehash(altered)
+        with self.assertRaises(EvidenceError):
+            verify_review_pack(altered)
+
+    def test_valid_links_are_reconciled(self):
+        audit = audit_review_structure(self.report)
+        self.assertEqual(audit["checked_cases"], 20)
+        self.assertGreater(audit["checked_similar_cases"], 0)
+        self.assertFalse(audit["source_authenticated"])
+
+    def test_forged_similarity_overlap_rejected(self):
+        def edit(pack):
+            pack["cases"][0]["similar_observed_cases"][0]["overlap"]["shared"] = 100
+        self.attack(edit)
+
+    def test_forged_similar_case_identity_rejected(self):
+        def edit(pack):
+            pack["cases"][0]["similar_observed_cases"][0]["experiment"]["entry_sha256"] = "f" * 64
+        self.attack(edit)
+
+    def test_reversed_similarity_signature_rejected(self):
+        def edit(pack):
+            pack["cases"][0]["similar_observed_cases"][0]["shared_negative_signatures"][0]["recorded_status"] = "PASS"
+        self.attack(edit)
+
+    def test_independence_field_not_authorized_by_similar_cases(self):
+        def edit(pack):
+            pack["cases"][0]["similar_observed_cases"][0]["independent_replication_established"] = True
+        self.attack(edit)
 
 
 if __name__ == "__main__":
