@@ -53,3 +53,59 @@ Ollama prose remains unverified and is excluded from this first benchmark.
    operator time measurements and quality non-inferiority, not synthetic timings.
 
 This synthetic harness is engineering qualification, not production approval.
+
+
+## Extended 20-case signed synthetic cohort
+
+The minimal one-case signed demo is retained for smoke testing. The extended
+cohort exercises 20 explicitly fabricated signed closed experiments, six
+expected procedure codes and 120 curator-labeled expected outcome cells.
+The input deliberately repeats negative patterns, mixes recorded PASS and FAIL,
+includes not-evaluable and missing procedures, and uses one fake source SHA for
+all cases so experiment count cannot be mistaken for independent replication.
+
+Run offline:
+
+    python -m forexpro_ri.cli review cohort-demo --out local_data/review-cohort
+    python -m forexpro_ri.cli review verify --dir local_data/review-cohort
+    python -m forexpro_ri.cli review benchmark \
+      --dir local_data/review-cohort \
+      --labels examples/review_cohort_gold.json
+
+The cohort signer is a fresh test-only Ed25519 key kept in process memory;
+private bytes are not saved. The individual signed synthetic bundles and SQLite
+are created in a disposable local temporary directory, then erased. The two
+published report files never include raw observations, strategy parameters,
+dataset bytes, source credentials or private path strings.
+
+The gold table is stored separately from the generator and does not use
+the generated report as an oracle. It is a synthetic curator *fixture*, not
+independent scientific validation, a real approved Core result or a measure
+of advisor semantic correctness. Reviewers should inspect the gold labels
+before treating the benchmark's structural pass as meaningful.
+
+## Private paired operator time-study (descriptive only)
+
+The optional offline study command accepts strictly structured *local* JSON,
+without task descriptions, usernames, strategies, timestamps, URLs or source
+evidence. The example uses fabricated time entries:
+
+    python -m forexpro_ri.cli review study \
+      --input examples/review_time_study_synthetic.json
+
+Each record requires TASK-001-like pseudonymous ID, task order
+MANUAL_FIRST/FRI_FIRST, manual_seconds, fri_seconds, six boolean decisions
+for answer accuracy, citation accuracy and false independence under each
+condition. It rejects additional fields and invalid measurements.
+
+The output provides a paired median and geometric mean speed ratio, total
+durations, error counts, task-level quality regressions and an order-balance
+check. At least 20 paired tasks and at least five in each order are needed
+to flag a self-reported study as eligible for *independent private review*.
+The analytic output never says a 100x real improvement is proven, does not
+assign causality and does not approve research or broker activity.
+
+For genuine observations, use source_class SELF_REPORTED_PRIVATE_OPERATOR in
+a restricted local input file, not a public GitHub commit. Identical tasks,
+validated human outcomes, randomized order, preregistered acceptance criteria
+and an independent assessor remain prerequisites for reliable inference.
