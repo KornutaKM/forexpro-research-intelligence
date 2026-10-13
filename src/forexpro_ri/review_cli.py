@@ -33,6 +33,8 @@ def run(argv: list[str]) -> int:
                       help="Explicitly labeled synthetic rehearsal ONLY, never real records")
     demo = commands.add_parser("demo", help="Single-command signed SYNTHETIC fixture rehearsal")
     demo.add_argument("--out", type=Path, required=True)
+    cohort = commands.add_parser("cohort-demo", help="Twenty signed SYNTHETIC closed studies")
+    cohort.add_argument("--out", type=Path, required=True)
     check = commands.add_parser("verify", help="Verify local pack digest and rendered HTML identity")
     check.add_argument("--dir", type=Path, required=True)
     benchmark = commands.add_parser("benchmark", help="Evaluate a pack against independent synthetic labels")
@@ -71,7 +73,15 @@ def run(argv: list[str]) -> int:
                               "source_export_permission_established": False},
                              sort_keys=True))
             return 0
-        if args.command == "demo":
+        if args.command == "cohort-demo":
+            from .review_cohort import make_signed_cohort
+            with tempfile.TemporaryDirectory(prefix="fri-review-cohort-") as scratch:
+                base = Path(scratch)
+                db = base / "cohort.sqlite"
+                cohort = make_signed_cohort(base, db)
+                pack = build_review_pack(db, expected_procedures=cohort["expected_procedures"])
+                result = publish_review_pack(pack, args.out)
+        elif args.command == "demo":
             from .bridge import create_synthetic_fixture
             from .memory import ingest
             with tempfile.TemporaryDirectory(prefix="fri-review-demo-") as scratch:
