@@ -107,6 +107,14 @@ def build_review_pack(
     source = [{"experiment_id": r["experiment_id"], "entry_sha256": r["entry_sha256"],
                "receipt_sha256": r["receipt_sha256"]}
               for r in sorted(receipts, key=lambda row: row["experiment_id"])]
+    synthetic_signed = (not allow_unsigned_synthetic and all(
+        ref["experiment_id"].startswith("SYNTHETIC-")
+        and receipt_by_id[ref["experiment_id"]]["signer_key_id"] in {
+            "SYNTHETIC_EPHEMERAL_BRIDGE_V1",
+            "FRI_SYNTHETIC_COHORT_IN_MEMORY_ONLY",
+        }
+        for ref in source
+    ))
     snapshot = _digest({"entries": source})
     failure = build_failure_report(location, min_support=min_support)
     advisor = build_advisor(location, expected_procedures=expected_procedures,
@@ -134,9 +142,12 @@ def build_review_pack(
             "experiment_id": eid,
             "entry_sha256": row["entry_sha256"],
             "receipt_sha256": row["receipt_sha256"],
-            "evidence_visibility": "HISTORICAL_SIGNED_INTAKE_ONLY"
+            "evidence_visibility": (
+                "SIGNED_SYNTHETIC_TEST_ONLY" if synthetic_signed
+                else "HISTORICAL_SIGNED_INTAKE_ONLY"
                 if receipt_by_id[eid]["verification_status"] == "SIGNATURE_VERIFIED"
-                else "UNSIGNED_SYNTHETIC_DEMO_ONLY",
+                else "UNSIGNED_SYNTHETIC_DEMO_ONLY"
+            ),
             "recorded_disposition": dossier["focus_experiment"]["recorded_disposition"],
             "procedure_outcomes": dossier["procedure_outcomes"],
             "evidence_visibility_gaps": dossier["evidence_visibility_gaps"],
@@ -161,8 +172,11 @@ def build_review_pack(
             "question_for_new_experiment": proposal["question_for_new_experiment"],
             "evidence_sample": refs,
             "evidence_sample_truncated": proposal["evidence_sample_truncated"],
-            "evidence_visibility": ("UNSIGNED_SYNTHETIC_DEMO_ONLY" if allow_unsigned_synthetic
-                                    else "HISTORICAL_RECEIPT_NOT_CURRENT_EXPORT_PERMISSION"),
+            "evidence_visibility": (
+                "UNSIGNED_SYNTHETIC_DEMO_ONLY" if allow_unsigned_synthetic
+                else "SIGNED_SYNTHETIC_TEST_ONLY" if synthetic_signed
+                else "HISTORICAL_RECEIPT_NOT_CURRENT_EXPORT_PERMISSION"
+            ),
             "interpretation": "DESCRIPTIVE_NOT_CAUSAL",
         })
 
@@ -173,8 +187,12 @@ def build_review_pack(
     return _finalize({
         "schema_version": 1,
         "report_kind": "NON_AUTHORITATIVE_RESEARCH_REVIEW_PACK",
-        "status": "SYNTHETIC_DEMONSTRATION" if allow_unsigned_synthetic else "HISTORICAL_SIGNED_INTAKES",
-        "intake_mode": "SYNTHETIC_EXPLICIT" if allow_unsigned_synthetic else "SIGNED_ONLY",
+        "status": ("SYNTHETIC_DEMONSTRATION" if allow_unsigned_synthetic
+                   else "SYNTHETIC_SIGNED_DEMONSTRATION" if synthetic_signed
+                   else "HISTORICAL_SIGNED_INTAKES"),
+        "intake_mode": ("SYNTHETIC_EXPLICIT" if allow_unsigned_synthetic
+                        else "SIGNED_SYNTHETIC_TEST" if synthetic_signed
+                        else "SIGNED_ONLY"),
         "experiment_count": count,
         "snapshot_sha256": snapshot,
         "provenance_audit_sha256": audit["report_sha256"],
@@ -205,7 +223,7 @@ def verify_review_pack(report: dict[str, Any]) -> None:
     if report.get("report_sha256") != _digest({k: v for k, v in report.items() if k != "report_sha256"}):
         raise EvidenceError("review pack digest mismatch")
     if report.get("status") not in ("NO_ELIGIBLE_DATA", "SYNTHETIC_DEMONSTRATION",
-                                     "HISTORICAL_SIGNED_INTAKES"):
+                                     "SYNTHETIC_SIGNED_DEMONSTRATION", "HISTORICAL_SIGNED_INTAKES"):
         raise EvidenceError("unknown review state")
     if report["status"] == "NO_ELIGIBLE_DATA" and (
         report.get("experiment_count") != 0 or report.get("cases") or report.get("review_topics")
