@@ -53,7 +53,8 @@ def evaluate_advisor_recall(pack: dict[str, Any], gold: dict[str, Any]) -> dict[
         if type(target) is not dict or set(target) != {"procedure", "label"}:
             raise EvidenceError("invalid target shape")
         p, label = target["procedure"], target["label"]
-        if type(p) is not str or p in by_proc or p not in eligible or label not in _LABELS:
+        if (type(p) is not str or p in by_proc or p not in eligible
+                or type(label) is not str or label not in _LABELS):
             raise EvidenceError("invalid/duplicate target or unrecognized label")
         by_proc[p] = label
     if set(by_proc) != set(eligible):
