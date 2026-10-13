@@ -40,6 +40,8 @@ def run(argv: list[str]) -> int:
     check.add_argument("--dir", type=Path, required=True)
     audit = commands.add_parser("audit", help="Reconcile all evidence, procedure counts, links and hash")
     audit.add_argument("--dir", type=Path, required=True)
+    triage = commands.add_parser("triage", help="Evidence-first operator summary from verified pack")
+    triage.add_argument("--dir", type=Path, required=True)
     compare = commands.add_parser("compare", help="Compare two validated append-only review snapshots")
     compare.add_argument("--before", type=Path, required=True)
     compare.add_argument("--after", type=Path, required=True)
@@ -56,6 +58,11 @@ def run(argv: list[str]) -> int:
     decisions.add_argument("--dir", type=Path, required=True)
     decisions.add_argument("--input", type=Path, required=True)
     decisions.add_argument("--out", type=Path, required=True)
+    agreement = commands.add_parser("agreement", help="Review two private SHA-bound decision sidecars")
+    agreement.add_argument("--dir", type=Path, required=True)
+    agreement.add_argument("--left", type=Path, required=True)
+    agreement.add_argument("--right", type=Path, required=True)
+    agreement.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "compare":
@@ -98,7 +105,7 @@ def run(argv: list[str]) -> int:
             result = analyze_paired_study(json.loads(source.read_text("utf-8")))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
-        if args.command in ("verify", "audit", "benchmark", "decision-template", "decisions"):
+        if args.command in ("verify", "audit", "triage", "agreement", "benchmark", "decision-template", "decisions"):
             source = args.dir
             if source.is_symlink() or not source.is_dir():
                 raise EvidenceError("pack directory missing or a symlink")
@@ -134,6 +141,34 @@ def run(argv: list[str]) -> int:
                     "status": "PRIVATE_REVIEW_SIDECAR_CREATED", "authority": "NONE",
                     "topics": len(data["review_topics"]),
                 }, sort_keys=True))
+                return 0
+            if args.command == "triage":
+                from .review_triage import summarize_review
+                result = summarize_review(data)
+                print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+                return 0
+            if args.command == "agreement":
+                from .review_agreement import compare_human_reviews
+                def checked_local_json(path: Path):
+                    if path.is_symlink() or not path.is_file() or path.stat().st_size > _MAX_REPORT_BYTES:
+                        raise EvidenceError("invalid private reviewer sidecar")
+                    return json.loads(path.read_text("utf-8"))
+                response = compare_human_reviews(
+                    data, checked_local_json(args.left), checked_local_json(args.right)
+                )
+                target = args.out
+                if (target.is_symlink() or target.exists() or not target.parent.is_dir()
+                        or target.parent.is_symlink()
+                        or target.resolve().is_relative_to(source.resolve())
+                        or target.resolve() in (args.left.resolve(), args.right.resolve())):
+                    raise EvidenceError("unsafe reviewer comparison destination")
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as output:
+                    output.write(json.dumps(response, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+                print(json.dumps({"status": "PRIVATE_REVIEW_DISAGREEMENTS_RECORDED",
+                                  "source_pack_sha256": data["report_sha256"],
+                                  "disagreement_count": len(response["disagreements"]),
+                                  "scientific_authority": False}, sort_keys=True))
                 return 0
             if args.command == "audit":
                 from .review_integrity import audit_review_structure
