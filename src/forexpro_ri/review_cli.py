@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from .contracts import EvidenceError
+from .review_secureio import read_private_bytes, read_private_json
 from .review_pack import (
     build_review_pack, publish_review_pack, render_review_html, verify_review_pack,
 )
@@ -77,9 +78,9 @@ def run(argv: list[str]) -> int:
                         or not b.is_file() or a.stat().st_size > _MAX_REPORT_BYTES
                         or b.stat().st_size > _MAX_HTML_BYTES):
                     raise EvidenceError("comparison pack has unsafe files")
-                data = json.loads(a.read_text("utf-8"))
+                data = read_private_json(a)
                 verify_review_pack(data)
-                if b.read_bytes() != render_review_html(data).encode("utf-8"):
+                if read_private_bytes(b, limit=_MAX_HTML_BYTES) != render_review_html(data).encode("utf-8"):
                     raise EvidenceError("comparison report HTML differs from JSON")
                 return data
             previous = checked_pack(args.before)
@@ -104,7 +105,7 @@ def run(argv: list[str]) -> int:
             source = args.input
             if source.is_symlink() or not source.is_file() or source.stat().st_size > _MAX_REPORT_BYTES:
                 raise EvidenceError("paired-study input must be a bounded real local file")
-            result = analyze_paired_study(json.loads(source.read_text("utf-8")))
+            result = analyze_paired_study(read_private_json(source))
             print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
         if args.command in ("verify", "audit", "triage", "repetition", "agreement", "benchmark", "decision-template", "decisions"):
@@ -117,9 +118,9 @@ def run(argv: list[str]) -> int:
                 raise EvidenceError("pack files absent or linked")
             if j.stat().st_size > _MAX_REPORT_BYTES or h.stat().st_size > _MAX_HTML_BYTES:
                 raise EvidenceError("pack exceeds size limit")
-            data = json.loads(j.read_text("utf-8"))
+            data = read_private_json(j)
             verify_review_pack(data)
-            if h.read_bytes() != render_review_html(data).encode("utf-8"):
+            if read_private_bytes(h, limit=_MAX_HTML_BYTES) != render_review_html(data).encode("utf-8"):
                 raise EvidenceError("pack HTML mismatch")
             if args.command in ("decision-template", "decisions"):
                 from .review_decisions import decision_template, assess_review_decisions
@@ -129,7 +130,7 @@ def run(argv: list[str]) -> int:
                     selected = args.input
                     if selected.is_symlink() or not selected.is_file() or selected.stat().st_size > _MAX_REPORT_BYTES:
                         raise EvidenceError("invalid decision input file")
-                    response = assess_review_decisions(data, json.loads(selected.read_text("utf-8")))
+                    response = assess_review_decisions(data, read_private_json(selected))
                 target = args.out
                 if (target.is_symlink() or target.exists() or not target.parent.is_dir()
                         or target.parent.is_symlink() or target.resolve().is_relative_to(source.resolve())
@@ -159,7 +160,7 @@ def run(argv: list[str]) -> int:
                 def checked_local_json(path: Path):
                     if path.is_symlink() or not path.is_file() or path.stat().st_size > _MAX_REPORT_BYTES:
                         raise EvidenceError("invalid private reviewer sidecar")
-                    return json.loads(path.read_text("utf-8"))
+                    return read_private_json(path)
                 response = compare_human_reviews(
                     data, checked_local_json(args.left), checked_local_json(args.right)
                 )
@@ -188,7 +189,7 @@ def run(argv: list[str]) -> int:
                     raise EvidenceError("independent label file must be a regular file")
                 if labels_path.stat().st_size > _MAX_REPORT_BYTES:
                     raise EvidenceError("benchmark labels exceed size limit")
-                labels = json.loads(labels_path.read_text("utf-8"))
+                labels = read_private_json(labels_path)
                 score = score_review_pack(data, labels)
                 print(json.dumps(score, sort_keys=True))
                 return 0 if score["status"] == "STRUCTURAL_PASS" else 2
