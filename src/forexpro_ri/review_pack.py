@@ -305,6 +305,31 @@ def render_review_html(report: dict[str, Any]) -> str:
             lines.append("</td></tr>")
         lines.append("</table><p><small>Operator questions retain their own "
                      "evidence citations below; attention is descriptive only.</small></p></section>")
+        from .review_repetition import _clusters_verified
+        repeated = _clusters_verified(report)
+        lines.append("<section><h2>Repeated negative-pattern cautions</h2>"
+                     "<p><small>Matching recorded negative states may justify reviewing prior "
+                     "work, but do not prove shared cause or independent replication.</small></p>")
+        if not repeated["clusters"]:
+            lines.append("<p>No repeated exact negative procedure-state patterns recorded.</p>")
+        for cluster in repeated["clusters"]:
+            lines.append("<article><h3>Observed pattern in " +
+                         esc(cluster["observed_case_count"]) + " stored cases</h3><p>")
+            for sig in cluster["negative_signature"]:
+                lines.append(esc(sig["procedure"]) + ": " +
+                             esc(sig["recorded_status"]) + " ")
+            lines.append("</p><p>Recorded examples: ")
+            for ref in cluster["sampled_experiments"]:
+                anchor = case_anchors.get(ref["experiment_id"])
+                if anchor is None:
+                    raise EvidenceError("unlinked repeated-negative reference")
+                lines.append("<a href=\"#" + anchor + "\">" +
+                             esc(ref["experiment_id"]) + "</a> ")
+            if cluster["sample_truncated"]:
+                lines.append("<small>Sample truncated</small>")
+            lines.append("</p><p><small>Independent replication: NOT ESTABLISHED. "
+                         "Review prior failures before selecting a new question.</small></p></article>")
+        lines.append("</section>")
         lines.append("<section><h2>Procedure coverage</h2><table>"
                      "<tr><th>Procedure</th><th>FAIL</th><th>PASS</th>"
                      "<th>NOT_EVALUABLE</th><th>UNOBSERVED</th></tr>")
